@@ -36,8 +36,8 @@ class Robot(Node):
         self.broadcaster = TransformBroadcaster(self)
         #create a timer callback to broadcast transforms at 100 Hz
         self.timer = self.create_timer(0.01, self.timer)
-        #create a publisher to publish joint states of the turtle
-        """ self.pub_joints = self.create_publisher()"""   #LEFT OFF HERE
+        #create a robot_state_publisher
+        """self.robot_state_publisher = self.create_publisher()"""   #LEFT OFF HERE
 
     def timer(self):
         world__base_link = TransformStamped()
@@ -51,3 +51,13 @@ class Robot(Node):
         # timestamp for transforms
         time = self.get_clock().now().to_msg()
         world__base_link.header.stamp = time
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    robot = Robot
+    rclpy.spin(robot)
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
