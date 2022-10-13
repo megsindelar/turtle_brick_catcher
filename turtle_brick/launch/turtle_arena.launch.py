@@ -12,16 +12,11 @@ from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
 def generate_launch_description():
-    arena_path = get_package_share_path('turtle_brick')
-    default_rviz_config_path = arena_path / 'rvizconfig.rviz'
+    rviz_path = get_package_share_path('turtle_brick')
+    default_rviz_config_path = rviz_path / 'rvizconfig.rviz'
 
     rviz_arg = DeclareLaunchArgument(name='rvizconfig', default_value=str(default_rviz_config_path),
                                      description='Absolute path to rviz config file')
-
-    arena_node = Node(package='turtle_brick',
-        executable='arena'
-    )
-
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
@@ -30,8 +25,12 @@ def generate_launch_description():
         arguments=['-d', LaunchConfiguration('rvizconfig')],
     )
 
+    arena_node = Node(package='turtle_brick',
+        executable='arena'
+    )
+
     return LaunchDescription([
         rviz_arg,
+        rviz_node,
         arena_node,
-        rviz_node
     ])

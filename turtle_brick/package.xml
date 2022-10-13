@@ -18,6 +18,7 @@
   <exec_depend>turtle_brick_interfaces</exec_depend>
   <exec_depend>show_turtle.launch.py</exec_depend>
   <exec_depend>run_turtle.launch.py</exec_depend>
+  <exec_depend>turtle_arena.launch.py</exec_depend>
   <exec_depend>joint_state_publisher</exec_depend>
   <exec_depend>joint_state_publisher_gui</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
