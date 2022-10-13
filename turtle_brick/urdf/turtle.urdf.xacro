@@ -1,10 +1,70 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="firefighter">
-  <link name="base_link">
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="turtle">
+  <link name="wheel">
     <visual>
       <geometry>
-        <cylinder length="0.6" radius="0.2"/>
+        <cylinder length="0.1" radius="0.3"/>
+      </geometry>
+      <origin rpy="0 -1.57075 0" xyz="0 0 0.3"/>
+    </visual>
+  </link>
+
+  <link name="stem">
+    <visual>
+      <geometry>
+        <cylinder length="0.2" radius="0.05"/>
       </geometry>
     </visual>
   </link>
+
+  <joint name="wheel_to_stem" type="fixed">
+    <parent link="wheel"/>
+    <child link="stem"/>
+    <origin rpy="0 0 0" xyz="0 0 0.7"/>
+  </joint>
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="0.4 0.4 0.4"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="stem_to_base" type="continuous">
+    <parent link="stem"/>
+    <child link="base_link"/>
+    <axis xyz="0 0 1"/>
+    <origin rpy="0 0 0" xyz="0 0 0.3"/>
+  </joint>
+
+  <link name="offset">
+    <visual>
+      <geometry>
+        <cylinder length="0.6" radius="0.05"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="base_to_offset" type="fixed">
+    <parent link="base_link"/>
+    <child link="offset"/>
+    <origin rpy="0 0 0" xyz="0 0 0.5"/>
+  </joint>
+
+  <link name="platform">
+    <visual>
+      <geometry>
+        <box size="0.8 0.8 0.05"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="offset_to_platform" type="continuous">
+    <parent link="offset"/>
+    <child link="platform"/>
+    <axis xyz="1 1 1"/>
+    <origin rpy="0 0 0" xyz="0 0 0.325"/>
+  </joint>
+  
 </robot>
