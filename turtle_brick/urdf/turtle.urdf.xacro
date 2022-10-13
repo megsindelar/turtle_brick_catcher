@@ -1,11 +1,10 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="turtle">
-  <link name="wheel">
+  <link name="base_link">
     <visual>
       <geometry>
-        <cylinder length="0.1" radius="0.3"/>
+        <box size="0.4 0.4 0.4"/>
       </geometry>
-      <origin rpy="0 -1.57075 0" xyz="0 0 0.3"/>
     </visual>
   </link>
 
@@ -17,25 +16,26 @@
     </visual>
   </link>
 
-  <joint name="wheel_to_stem" type="fixed">
-    <parent link="wheel"/>
+  <joint name="base_to_stem" type="continuous">
+    <parent link="base_link"/>
     <child link="stem"/>
-    <origin rpy="0 0 0" xyz="0 0 0.7"/>
+    <axis xyz="0 0 -1"/>
+    <origin rpy="0 0 0" xyz="0 0 -0.3"/>
   </joint>
 
-  <link name="base_link">
+  <link name="wheel">
     <visual>
       <geometry>
-        <box size="0.4 0.4 0.4"/>
+        <cylinder length="0.1" radius="0.3"/>
       </geometry>
+      <origin rpy="0 -1.57075 0" xyz="0 0 0.3"/>
     </visual>
   </link>
 
-  <joint name="stem_to_base" type="continuous">
+  <joint name="stem_to_wheel" type="fixed">
     <parent link="stem"/>
-    <child link="base_link"/>
-    <axis xyz="0 0 1"/>
-    <origin rpy="0 0 0" xyz="0 0 0.3"/>
+    <child link="wheel"/>
+    <origin rpy="0 0 0" xyz="0 0 -0.7"/>
   </joint>
 
   <link name="offset">

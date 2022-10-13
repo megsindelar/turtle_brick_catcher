@@ -1,3 +1,6 @@
+from struct import pack
+from termios import ECHOE
+from tkinter.messagebox import NO
 from ament_index_python.packages import get_package_share_path
 
 from launch import LaunchDescription
@@ -9,9 +12,9 @@ from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
 def generate_launch_description():
-    urdf_tutorial_path = get_package_share_path('turtle_brick')
-    default_model_path = urdf_tutorial_path / 'turtle.urdf.xacro'
-    default_rviz_config_path = urdf_tutorial_path / 'rvizconfig.rviz'
+    urdf_path = get_package_share_path('turtle_brick')
+    default_model_path = urdf_path / 'turtle.urdf.xacro'
+    default_rviz_config_path = urdf_path / 'rvizconfig.rviz'
 
     gui_arg = DeclareLaunchArgument(name='gui', default_value='true', choices=['true', 'false'],
                                     description='Flag to enable joint_state_publisher_gui')
@@ -30,11 +33,11 @@ def generate_launch_description():
     )
 
     # Depending on gui parameter, either launch joint_state_publisher or joint_state_publisher_gui
-    joint_state_publisher_node = Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        condition=UnlessCondition(LaunchConfiguration('gui'))
-    )
+    # joint_state_publisher_node = Node(
+    #     package='joint_state_publisher',
+    #     executable='joint_state_publisher',
+    #     condition=UnlessCondition(LaunchConfiguration('gui'))
+    # )
 
     joint_state_publisher_gui_node = Node(
         package='joint_state_publisher_gui',
@@ -54,7 +57,6 @@ def generate_launch_description():
         gui_arg,
         model_arg,
         rviz_arg,
-        joint_state_publisher_node,
         joint_state_publisher_gui_node,
         robot_state_publisher_node,
         rviz_node
