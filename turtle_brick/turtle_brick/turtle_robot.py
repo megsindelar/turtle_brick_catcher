@@ -2,28 +2,9 @@ import rclpy
 from rclpy.node import Node
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
-from geometry_msgs.msg import TransformStamped, Quaternion
+from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import JointState
-from math import sin, cos, sqrt, pi
-
-
-def angle_axis_to_quaternion(theta, axis):
-    """ Convert from angle-axis of rotation to a quaternion
-
-        Args:
-          theta:  rotation angle, in radians
-          axis: the rotational axis. This will be normalized
-
-        Returns:
-          A Quaternion corresponding to the rotation
-    """
-    magnitude = sqrt(axis[0]**2 + axis[1]**2 + axis[2]**2)
-    normalized = [v/magnitude for v in axis]
-    sinTheta2 = sin(theta/2.0)
-    return Quaternion(x=normalized[0]*sinTheta2,
-                      y=normalized[1]*sinTheta2,
-                      z=normalized[2]*sinTheta2,
-                      w=cos(theta/2.0))
+from .quaternion import angle_axis_to_quaternion
 
 
 class Robot(Node):
@@ -39,7 +20,7 @@ class Robot(Node):
         self.static_broadcaster = StaticTransformBroadcaster(self)
         
         #create a joint_state_publisher
-        self.joint_state_publisher = self.create_publisher(JointState, 'joint_states', 10)   #LEFT OFF HERE
+        #self.joint_state_publisher = self.create_publisher(JointState, 'joint_states', 10)   #LEFT OFF HERE
         
 
         world__odom_link = TransformStamped()
@@ -82,7 +63,6 @@ class Robot(Node):
         odom__base_link.child_frame_id = "base_link"
         odom__base_link.header.stamp = time
         odom__base_link.transform.translation.x = float(self.dx)
-
 
         self.broadcaster.sendTransform(odom__base_link)
 

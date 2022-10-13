@@ -1,6 +1,3 @@
-from struct import pack
-from termios import ECHOE
-from tkinter.messagebox import NO
 from ament_index_python.packages import get_package_share_path
 
 from launch import LaunchDescription

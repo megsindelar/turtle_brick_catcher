@@ -1,8 +1,5 @@
 import os
 
-from struct import pack
-from termios import ECHOE
-from tkinter.messagebox import NO
 from ament_index_python.packages import get_package_share_path, get_package_share_directory
 
 from launch import LaunchDescription
@@ -23,9 +20,8 @@ def generate_launch_description():
         executable='turtle_robot'
     )
 
-
     return LaunchDescription([
+        show_turtle_launch_file,
         turtlesim_node,
-        turtle_robot_node,
-        show_turtle_launch_file
+        turtle_robot_node
     ])

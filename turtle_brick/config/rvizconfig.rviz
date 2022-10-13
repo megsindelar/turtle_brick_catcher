@@ -6,7 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /RobotModel1
+        - /TF1
       Splitter Ratio: 0.5
     Tree Height: 549
   - Class: rviz_common/Selection
@@ -53,13 +53,35 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
+        base_link:
+          Value: true
+        odom:
+          Value: true
+        offset:
+          Value: true
+        platform:
+          Value: true
+        stem:
+          Value: true
+        wheel:
+          Value: true
+        world:
+          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: false
       Tree:
-        {}
+        world:
+          odom:
+            base_link:
+              offset:
+                platform:
+                  {}
+              stem:
+                wheel:
+                  {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -79,7 +101,32 @@ Visualization Manager:
         Expand Joint Details: false
         Expand Link Details: false
         Expand Tree: false
-        Link Tree Style: ""
+        Link Tree Style: Links in Alphabetic Order
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        offset:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        platform:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        stem:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        wheel:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
       Mass Properties:
         Inertia: false
         Mass: false
@@ -91,7 +138,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: map
+    Fixed Frame: world
     Frame Rate: 30
   Name: root
   Tools:
@@ -134,16 +181,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 10
+      Distance: 18.357418060302734
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: -0.09630066901445389
+        Y: 0.0962999016046524
+        Z: -3.5297125577926636e-07
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
