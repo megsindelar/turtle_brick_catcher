@@ -9,7 +9,10 @@ from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped, Point
 from visualization_msgs.msg import Marker, MarkerArray
 from sensor_msgs.msg import JointState
+import std_srvs
+from std_srvs.srv import Empty
 from .quaternion import angle_axis_to_quaternion
+#from turtle_brick_interfaces.srv import Place, Drop
 
 
 class Arena(Node):
@@ -28,11 +31,23 @@ class Arena(Node):
         #create a broadcaster that will repeatedly publish to /tf
         self.broadcaster = TransformBroadcaster(self)
 
-        #create marker publisher
+        #create marker publisher for wall array
         self.pub_wall = self.create_publisher(MarkerArray,"visualization_marker_array",10)
 
-        #create marker publisher
+        #create marker publisher for brick
         self.pub_brick = self.create_publisher(Marker,"visualization_marker",10)
+
+        #create a service for brick to fall
+        #self.place = self.create_service(Place,"place",self.brick_callback)
+
+        #create a service for brick to fall
+        #self.drop = self.create_service(Empty,"drop",self.drop_callback)
+
+        """
+        NOTEE FOR SELF
+        
+        need to re-adjust wall 
+        """
 
         #marker
         self.wall1 = Marker()
@@ -41,15 +56,15 @@ class Arena(Node):
         self.wall1.id = 1
         self.wall1.type = self.wall1.CUBE
         self.wall1.action = self.wall1.ADD
-        self.wall1.scale.x = 10.0
+        self.wall1.scale.x = 11.0
         self.wall1.scale.y = 0.1
         self.wall1.scale.z = 0.5
         self.wall1.color.r = 1.0
         self.wall1.color.g = 0.0
         self.wall1.color.b = 1.0
         self.wall1.color.a = 1.0
-        self.wall1.pose.position.x = 0.0
-        self.wall1.pose.position.y = -5.0
+        self.wall1.pose.position.x = -5.5
+        self.wall1.pose.position.y = -5.5
         self.wall1.pose.position.z = 0.0
      
         self.wall2 = Marker()
@@ -58,15 +73,15 @@ class Arena(Node):
         self.wall2.id = 2
         self.wall2.type = self.wall2.CUBE
         self.wall2.action = self.wall2.ADD
-        self.wall2.scale.x = 10.0
+        self.wall2.scale.x = 11.0
         self.wall2.scale.y = 0.1
         self.wall2.scale.z = 0.5
         self.wall2.color.r = 1.0
         self.wall2.color.g = 0.0
         self.wall2.color.b = 1.0
         self.wall2.color.a = 1.0
-        self.wall2.pose.position.x = 0.0
-        self.wall2.pose.position.y = 5.0
+        self.wall2.pose.position.x = -5.5
+        self.wall2.pose.position.y = 5.5
         self.wall2.pose.position.z = 0.0
 
         self.wall3 = Marker()
@@ -76,13 +91,13 @@ class Arena(Node):
         self.wall3.type = self.wall3.CUBE
         self.wall3.action = self.wall3.ADD
         self.wall3.scale.x = 0.1
-        self.wall3.scale.y = 10.0
+        self.wall3.scale.y = 11.0
         self.wall3.scale.z = 0.5
         self.wall3.color.r = 1.0
         self.wall3.color.g = 0.0
         self.wall3.color.b = 1.0
         self.wall3.color.a = 1.0
-        self.wall3.pose.position.x = 5.0
+        self.wall3.pose.position.x = 0.0
         self.wall3.pose.position.y = 0.0
         self.wall3.pose.position.z = 0.0
 
@@ -93,13 +108,13 @@ class Arena(Node):
         self.wall4.type = self.wall4.CUBE
         self.wall4.action = self.wall4.ADD
         self.wall4.scale.x = 0.1
-        self.wall4.scale.y = 10.0
+        self.wall4.scale.y = 11.0
         self.wall4.scale.z = 0.5
         self.wall4.color.r = 1.0
         self.wall4.color.g = 0.0
         self.wall4.color.b = 1.0
         self.wall4.color.a = 1.0
-        self.wall4.pose.position.x = -5.0
+        self.wall4.pose.position.x = -11.0
         self.wall4.pose.position.y = 0.0
         self.wall4.pose.position.z = 0.0
 
@@ -110,10 +125,24 @@ class Arena(Node):
         self.wall_array.markers.append(self.wall4)
   
 
-        #create a timer callback to broadcast transforms at 100 Hz
-        self.timer = self.create_timer(0.01, self.timer)
+        #create a timer callback to broadcast transforms at 250 Hz
+        self.timer = self.create_timer(0.004, self.timer)
 
         self.dx = 4
+
+    # def brick_callback(self, request, response):
+    #     pose_x = request.x
+    #     pose_y = request.y
+
+
+
+    #     response.x = 
+    #     response.y = 
+    #     return response
+
+    # def drop_callback(self, request, response):
+    #     #check brick z pose and turtle bot 
+    #     return
 
     def timer(self):
 
