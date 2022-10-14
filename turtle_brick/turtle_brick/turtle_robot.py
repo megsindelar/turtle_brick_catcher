@@ -88,18 +88,18 @@ class Robot(Node):
         maybe use a async function with waiting for future to wait for a turtlesim pose to then set odom frame
         """
 
-        if self.count == 30:
-            time = self.get_clock().now().to_msg()
-            odom__base_link.header.frame_id = "odom"
-            odom__base_link.child_frame_id = "base_link"
-            odom__base_link.header.stamp = time
-            odom__base_link.transform.translation.x = float(self.pose.x)
-            odom__base_link.transform.translation.y = float(self.pose.y)
+        #if self.count == 30:
+        time = self.get_clock().now().to_msg()
+        odom__base_link.header.frame_id = "odom"
+        odom__base_link.child_frame_id = "base_link"
+        odom__base_link.header.stamp = time
+        odom__base_link.transform.translation.x = float(self.pose.x)
+        odom__base_link.transform.translation.y = float(self.pose.y)
 
 
-            self.broadcaster.sendTransform(odom__base_link)
-        else:
-            self.count+=1
+        self.broadcaster.sendTransform(odom__base_link)
+        #else:
+        #    self.count+=1
 
         #publish joint states to test
         # joint = ["base_to_stem"]
