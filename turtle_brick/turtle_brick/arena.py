@@ -29,7 +29,10 @@ class Arena(Node):
         self.broadcaster = TransformBroadcaster(self)
 
         #create marker publisher
-        self.pub_marker = self.create_publisher(MarkerArray,"visualization_marker_array",10)
+        self.pub_wall = self.create_publisher(MarkerArray,"visualization_marker_array",10)
+
+        #create marker publisher
+        self.pub_brick = self.create_publisher(Marker,"visualization_marker",10)
 
         #marker
         self.wall1 = Marker()
@@ -100,7 +103,6 @@ class Arena(Node):
         self.wall4.pose.position.y = 0.0
         self.wall4.pose.position.z = 0.0
 
-
         self.wall_array = MarkerArray()
         self.wall_array.markers.append(self.wall1)
         self.wall_array.markers.append(self.wall2)
@@ -122,9 +124,24 @@ class Arena(Node):
         odom__brick_link.header.stamp = time
         odom__brick_link.transform.translation.z = float(self.dx)
 
+        self.brick = Marker()
+        self.brick.header.frame_id = "/brick"
+        self.brick.header.stamp = self.get_clock().now().to_msg()
+        self.brick.type = self.brick.CUBE
+        self.brick.action = self.brick.ADD
+        self.brick.scale.x = 0.2
+        self.brick.scale.y = 0.3
+        self.brick.scale.z = 0.1
+        self.brick.color.r = 1.0
+        self.brick.color.g = 0.0
+        self.brick.color.b = 0.0
+        self.brick.color.a = 1.0
+
         self.broadcaster.sendTransform(odom__brick_link)
 
-        self.pub_marker.publish(self.wall_array)
+        self.pub_brick.publish(self.brick)
+
+        self.pub_wall.publish(self.wall_array)
         
 def arena_entry(args=None):
     rclpy.init(args=args)
