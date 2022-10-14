@@ -10,6 +10,7 @@ from geometry_msgs.msg import TransformStamped, Twist, Vector3
 from turtlesim.msg import Pose
 from sensor_msgs.msg import JointState
 from .quaternion import angle_axis_to_quaternion
+from std_msgs.msg import Bool
 
 
 class Robot(Node):
@@ -32,6 +33,9 @@ class Robot(Node):
 
         #create a publisher for cmd_vel   
         self.cmd_vel_pub = self.create_publisher(Twist, "turtle1/cmd_vel", 10)
+
+        #create a subscriber to goal_pose
+        self.goal_pose_sub = self.create_subscription(Bool,"goal_pose",self.goal_pose_callback,10)
 
         #create a listener for brick position  
         self.tf_buffer = Buffer()  
@@ -59,9 +63,13 @@ class Robot(Node):
         self.az = 0.0
 
         self.i = 0
+        self.count = 0
 
     def turtle_pose_callback(self,msg):
         self.pose = msg
+
+    def goal_pose_callback(self,msg):
+        self.goal = msg
 
     def timer(self):
         
@@ -80,15 +88,18 @@ class Robot(Node):
         maybe use a async function with waiting for future to wait for a turtlesim pose to then set odom frame
         """
 
-        time = self.get_clock().now().to_msg()
-        odom__base_link.header.frame_id = "odom"
-        odom__base_link.child_frame_id = "base_link"
-        odom__base_link.header.stamp = time
-        odom__base_link.transform.translation.x = float(self.pose.x)
-        odom__base_link.transform.translation.y = float(self.pose.y)
+        if self.count == 30:
+            time = self.get_clock().now().to_msg()
+            odom__base_link.header.frame_id = "odom"
+            odom__base_link.child_frame_id = "base_link"
+            odom__base_link.header.stamp = time
+            odom__base_link.transform.translation.x = float(self.pose.x)
+            odom__base_link.transform.translation.y = float(self.pose.y)
 
 
-        self.broadcaster.sendTransform(odom__base_link)
+            self.broadcaster.sendTransform(odom__base_link)
+        else:
+            self.count+=1
 
         #publish joint states to test
         # joint = ["base_to_stem"]

@@ -2,6 +2,7 @@ from audioop import add
 from distutils.log import info
 from matplotlib.pyplot import cla
 from numpy import block
+from pyrsistent import b
 import rclpy
 from rclpy.node import Node
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
@@ -12,7 +13,7 @@ from sensor_msgs.msg import JointState
 import std_srvs
 from std_srvs.srv import Empty
 from .quaternion import angle_axis_to_quaternion
-#from turtle_brick_interfaces.srv import Place, Drop
+#from turtle_brick_interfaces.srv import Place
 
 
 class Arena(Node):
@@ -128,21 +129,43 @@ class Arena(Node):
         #create a timer callback to broadcast transforms at 250 Hz
         self.timer = self.create_timer(0.004, self.timer)
 
+        self.count1 = 0
+
         self.dx = 4
+        self.dy = 2
+        self.dz = 10.0
 
-    # def brick_callback(self, request, response):
-    #     pose_x = request.x
-    #     pose_y = request.y
+        self.brick_move()
 
+    #def brick_callback(self, request, response):
+    def brick_move(self):
+        #brick_init = request.move_brick
 
+        #brick_init_x = brick_init[0]
+        #brick_init_y = brick_init[1]
+        brick_init_x = -4.0
+        brick_init_y = -4.0
 
-    #     response.x = 
-    #     response.y = 
-    #     return response
+        odom__brick_link = TransformStamped()
+        time = self.get_clock().now().to_msg()
+        odom__brick_link.header.frame_id = "odom"
+        odom__brick_link.child_frame_id = "brick"
+        odom__brick_link.header.stamp = time
+        odom__brick_link.transform.translation.x = float(brick_init_x)
+        odom__brick_link.transform.translation.y = float(brick_init_y)
 
-    # def drop_callback(self, request, response):
-    #     #check brick z pose and turtle bot 
-    #     return
+        self.broadcaster.sendTransform(odom__brick_link)
+
+        # response.x = brick_init_x
+        # response.y = brick_init_y
+        # return response
+
+    #def drop_callback(self, request, response):
+    def drop(self):
+        #check brick z pose and turtle bot 
+        if self.dz > 0.0:
+            self.dz -= 1.0
+        return 
 
     def timer(self):
 
@@ -151,7 +174,8 @@ class Arena(Node):
         odom__brick_link.header.frame_id = "odom"
         odom__brick_link.child_frame_id = "brick"
         odom__brick_link.header.stamp = time
-        odom__brick_link.transform.translation.z = float(self.dx)
+        odom__brick_link.transform.translation.x = float(self.dx)
+        odom__brick_link.transform.translation.y = float(self.dy)
 
         self.brick = Marker()
         self.brick.header.frame_id = "/brick"
@@ -166,11 +190,20 @@ class Arena(Node):
         self.brick.color.b = 0.0
         self.brick.color.a = 1.0
 
+        if self.count1 > 20:
+            self.drop()
+            self.count1=0
+        else:
+            self.count1+=1
+
+        odom__brick_link.transform.translation.z = float(self.dz)
+
         self.broadcaster.sendTransform(odom__brick_link)
 
         self.pub_brick.publish(self.brick)
 
         self.pub_wall.publish(self.wall_array)
+
         
 def arena_entry(args=None):
     rclpy.init(args=args)
