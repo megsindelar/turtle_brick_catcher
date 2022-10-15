@@ -1,4 +1,5 @@
 from email.mime import base
+from re import M
 from sklearn.metrics import euclidean_distances
 import rclpy
 from rclpy.node import Node
@@ -12,6 +13,7 @@ from math import sqrt
 from std_msgs.msg import Bool
 from enum import Enum, auto
 from std_srvs.srv import Empty
+from visualization_msgs.msg import Marker
 
 class State(Enum):
     DETECTED = auto()
@@ -42,8 +44,36 @@ class Catcher(Node):
         #create a publisher to send velocity commands to turtlesim
         #self.goal_pose_pub = self.create_publisher(Bool,"goal_pose",10)
 
+        #create marker publisher for brick
+        self.pub_text = self.create_publisher(Marker,"visualization_marker",10)
+
+
+        #Declare a frequency parameter for timer callback
+        #self.declare_parameter("frequency", 100.0)
+        #self.frequency = self.get_parameter("frequency").get_parameter_value().double_value
+        self.frequency = 100
         # #create a timer callback to broadcast transforms at 100 Hz
-        self.timer = self.create_timer(0.01, self.timer)
+        self.timer = self.create_timer((1/self.frequency), self.timer)
+
+        self.text = Marker()
+        self.text.header.frame_id = "/world"
+        self.text.id = 5
+        self.text.header.stamp = self.get_clock().now().to_msg()
+        self.text.type = self.text.TEXT_VIEW_FACING
+        self.text.action = self.text.ADD
+        self.text.text = "Unreachable"
+        self.text.lifetime.sec = 3
+        self.text.scale.x = 10.0
+        self.text.scale.y = 10.0
+        self.text.scale.z = 3.0
+        self.text.color.r = 0.9
+        self.text.color.g = 0.9
+        self.text.color.b = 0.9
+        self.text.color.a = 1.0
+        self.text.pose.position.x = 0.0
+        self.text.pose.position.y = 0.0
+        self.text.pose.position.z = 0.0
+
 
         self.max_vel = 0.22
 
@@ -55,6 +85,14 @@ class Catcher(Node):
         self.y_brick_prev = 0
         self.z_brick_prev = 0
         self.F = 0
+
+        self.marker = 0
+
+        self.life = 3
+
+        self.counts = self.frequency*self.life
+
+        self.counter = 0
 
 
     def brick_to_base(self,x_brick,y_brick,z_brick,x_plat,y_plat,z_plat):
@@ -71,6 +109,7 @@ class Catcher(Node):
                 move = True
                 #self.goal_pose_pub.publish(move)
                 self.get_logger().info(f"MOVE TO GOAL: {move}")
+                self.marker = 0
                 self.state = State.DETECTED
 
             else:
@@ -80,6 +119,7 @@ class Catcher(Node):
                 self.get_logger().info(f"Can't move to goal: {move}")
                 self.z_brick_prev = -10.0
                 #self.state = State.TRIED    
+                self.marker = 1
                 self.state = State.UNDETECTED
 
         else:
@@ -88,7 +128,8 @@ class Catcher(Node):
             self.get_logger().info("Brick starts below robot platform, can't move to goal!")
             self.z_brick_prev = -10.0
             #self.state = State.TRIED
-            self.state = State.UNDETECTED
+            self.marker = 1
+            
 
     def timer(self):
         if self.state == State.UNDETECTED:
@@ -101,8 +142,8 @@ class Catcher(Node):
                 #base_t = brick_t.transform.translation.x
                 #self.get_logger().info(f'base_t: {base_t}')
             except TransformException as ex:
-                        self.get_logger().info(
-                            f'Could not transform {self.odom} to {self.base}: {ex}')
+                        #self.get_logger().info(
+                        #    f'Could not transform {self.odom} to {self.base}: {ex}')
                         return
 
             x_base = base_t.transform.translation.x
@@ -121,8 +162,8 @@ class Catcher(Node):
         rclpy.time.Time())
                 #self.get_logger().info(f'transform: {brick_t}')
             except TransformException as ex:
-                        self.get_logger().info(
-                            f'Could not transform {self.odom} to {self.brick}: {ex}')
+                        #self.get_logger().info(
+                        #    f'Could not transform {self.odom} to {self.brick}: {ex}')
                         return
 
             x_brick = brick_t.transform.translation.x
@@ -142,6 +183,15 @@ class Catcher(Node):
                 #self.get_logger().info('HELLOOOOOOOOOOOOOOOO!')
 
             self.z_brick_prev = z_brick
+
+            if self.marker == 1:
+                self.text.header.stamp = self.get_clock().now().to_msg()
+                self.pub_text.publish(self.text)
+                if self.counter < self.counts:
+                    self.counter+=1
+                else:
+                    self.marker=0
+                    self.counter=0
 
 
         elif self.state == State.DETECTED:
