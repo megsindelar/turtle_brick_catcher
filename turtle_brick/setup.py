@@ -21,7 +21,8 @@ setup(
     entry_points={
         'console_scripts': [
             'turtle_robot=turtle_brick.turtle_robot:turtle_robot_entry',
-            'arena=turtle_brick.arena:arena_entry'
+            'arena=turtle_brick.arena:arena_entry',
+            'catcher=turtle_brick.catcher:catcher_entry'
         ],
     },
 )

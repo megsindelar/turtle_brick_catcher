@@ -1,4 +1,5 @@
 import os
+from struct import pack
 
 from ament_index_python.packages import get_package_share_path, get_package_share_directory
 
@@ -17,8 +18,13 @@ def generate_launch_description():
     arena_node = Node(package='turtle_brick',
         executable='arena'
     )
+    
+    catcher_node = Node(package='turtle_brick',
+        executable='catcher'
+    )
 
     return LaunchDescription([
         run_turtle_launch_file,
-        arena_node
+        arena_node,
+        catcher_node
     ])

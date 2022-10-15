@@ -28,14 +28,11 @@ class Robot(Node):
         #create a joint_state_publisher
         #self.joint_state_publisher = self.create_publisher(JointState, 'joint_states', 10)   #LEFT OFF HERE
 
-        #create a subscriber to turtle_pose
-        self.turtle_pose = self.create_subscription(Pose, "turtle1/pose", self.turtle_pose_callback, 10)
-
         #create a publisher for cmd_vel   
         self.cmd_vel_pub = self.create_publisher(Twist, "turtle1/cmd_vel", 10)
 
         #create a subscriber to goal_pose
-        self.goal_pose_sub = self.create_subscription(Bool,"goal_pose",self.goal_pose_callback,10)
+        #self.goal_pose_sub = self.create_subscription(Bool,"goal_pose",self.goal_pose_callback,10)
 
         #create a listener for brick position  
         self.tf_buffer = Buffer()  
@@ -65,11 +62,14 @@ class Robot(Node):
         self.i = 0
         self.count = 0
 
+        #create a subscriber to turtle_pose
+        self.turtle_pose = self.create_subscription(Pose, "turtle1/pose", self.turtle_pose_callback, 10)
+
     def turtle_pose_callback(self,msg):
         self.pose = msg
 
-    def goal_pose_callback(self,msg):
-        self.goal = msg
+    # def goal_pose_callback(self,msg):
+    #     self.goal = msg
 
     def timer(self):
         
@@ -77,9 +77,9 @@ class Robot(Node):
             self.lx += 1.0
             self.i+=1
 
-        move = Twist(linear = Vector3(x = float(self.lx), y = 0.0, z = 0.0),
-                    angular = Vector3(x = 0.0, y = 0.0, z = 1.0))
-        self.cmd_vel_pub.publish(move)
+        # move = Twist(linear = Vector3(x = float(self.lx), y = 0.0, z = 0.0),
+        #             angular = Vector3(x = 0.0, y = 0.0, z = 1.0))
+        # self.cmd_vel_pub.publish(move)
 
         odom__base_link = TransformStamped()
 
@@ -93,8 +93,10 @@ class Robot(Node):
         odom__base_link.header.frame_id = "odom"
         odom__base_link.child_frame_id = "base_link"
         odom__base_link.header.stamp = time
-        odom__base_link.transform.translation.x = float(self.pose.x)
-        odom__base_link.transform.translation.y = float(self.pose.y)
+        odom__base_link.transform.translation.x = 7.0
+        odom__base_link.transform.translation.y = 4.0
+        # odom__base_link.transform.translation.x = float(self.pose.x)
+        # odom__base_link.transform.translation.y = float(self.pose.y)
 
 
         self.broadcaster.sendTransform(odom__base_link)

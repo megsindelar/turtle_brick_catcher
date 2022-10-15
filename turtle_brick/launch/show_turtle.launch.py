@@ -23,14 +23,6 @@ def generate_launch_description():
     robot_description = ParameterValue(Command(['xacro ', LaunchConfiguration('model')]),
                                        value_type=str)
 
-    rviz_node = Node(
-    package='rviz2',
-    executable='rviz2',
-    name='rviz2',
-    output='screen',
-    arguments=['-d', LaunchConfiguration('rvizconfig')],
-    )
-
     robot_state_publisher_node = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
@@ -50,12 +42,20 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('gui'))
     )
 
+    rviz_node = Node(
+    package='rviz2',
+    executable='rviz2',
+    name='rviz2',
+    output='screen',
+    arguments=['-d', LaunchConfiguration('rvizconfig')],
+    )
+
     return LaunchDescription([
         gui_arg,
         model_arg,
         rviz_arg,
-        rviz_node,
         joint_state_publisher_node,
         joint_state_publisher_gui_node,
-        robot_state_publisher_node
+        robot_state_publisher_node,
+        rviz_node
     ])
