@@ -37,12 +37,12 @@ class Robot(Node):
         #create a subscriber to see if robot moves
         self.move_robot_sub = self.create_subscription(RobotMove, "move_robot", self.move_robot_callback, 10)
 
-        #create a subscriber for if brick hit target (either ground or platform)
-        #self.hit_targ_sub = self.create_subscription(Bool, "hit_targ", self.hit_targ_callback, 10)
+        #create a publisher for if brick hit target (either ground or platform)
+        self.hit_targ_pub = self.create_publisher(Bool, "hit_targ", 10)
 
         #create a listener for brick position  
-        self.tf_buffer = Buffer()  
-        self.tf_brick_listener = TransformListener(self.tf_buffer, self)
+        # self.tf_buffer = Buffer()  
+        # self.tf_brick_listener = TransformListener(self.tf_buffer, self)
 
         world__odom_link = TransformStamped()
         world__odom_link.header.stamp = self.get_clock().now().to_msg()
@@ -73,6 +73,8 @@ class Robot(Node):
 
         self.move_robot_now = 0
         self.wait = 0
+        #self.targ = Bool()
+        #self.targ.data = False
 
         #create a subscriber to turtle_pose
         self.turtle_pose = self.create_subscription(Pose, "turtle1/pose", self.turtle_pose_callback, 10)
@@ -84,15 +86,10 @@ class Robot(Node):
         self.goal = msg
         self.get_logger().info(f'goal pose: {self.goal}')
 
-    # def hit_targ_callback(self,msg):
-    #     self.hit_targ = msg
-    #     self.get_logger().info(f'hit targ: {self.hit_targ}')
-
     def move_robot_callback(self,msg):
         self.brick = msg
-        self.brick_x = self.brick.x
-        self.brick_y = self.brick.y
         self.robot_move = self.brick.robotmove
+        self.get_logger().info(f'robotmove: {self.robot_move}')
 
     def timer(self):
         odom__base_link = TransformStamped()
@@ -111,9 +108,10 @@ class Robot(Node):
         self.move = Twist()
 
         if self.move_robot_now == 1:
+            self.get_logger().info("MESMES")
 
-            self.diff_x = self.brick_x - self.pose.x
-            self.diff_y = self.brick_y - self.pose.y
+            self.diff_x = self.goal.x - self.pose.x
+            self.diff_y = self.goal.y - self.pose.y
 
             if self.diff_x > 0:
                 self.move.linear.x = self.max_vel
@@ -129,15 +127,19 @@ class Robot(Node):
             else:
                 self.move.linear.y = 0.0
 
+            self_lin_x = self.move.linear.x
+            self_lin_y = self.move.linear.y
+
             odom__base_link.transform.translation.x = float(self.pose.x)
             odom__base_link.transform.translation.y = float(self.pose.y)
 
-            self.abs_diff_x = abs(self.brick_x - self.pose.x)
-            self.abs_diff_y = abs(self.brick_y - self.pose.y)
+            self.abs_diff_x = abs(self.goal.x - self.pose.x)
+            self.abs_diff_y = abs(self.goal.y - self.pose.y)
 
             if self.abs_diff_x < 0.01 and self.abs_diff_y < 0.01:
                 self.move_robot_now = 0
                 self.wait = 1
+                self.get_logger().info("WAITING")
 
         
         elif self.move_robot_now == 0 and self.wait == 1:
@@ -146,7 +148,25 @@ class Robot(Node):
             self.move.linear.y = 0.0
             odom__base_link.transform.translation.x = float(self.pose.x)
             odom__base_link.transform.translation.y = float(self.pose.y)
+            #self.targ.data = True
 
+            # x_center = 6.5
+            # y_center = 6.5
+            # difference_x = abs(self.pose.x - x_center)
+            # difference_y = abs(self.pose.y - y_center)
+
+            # if difference_x > 0.01:
+            #     self.move.linear.x = -self_lin_x
+            # else:
+            #     self.move.linear.x = 0.0
+
+            # if difference_y > 0.01:
+            #     self.move.linear.y = -self_lin_y
+            # else:
+            #     self.move.linear.y = 0.0
+
+            # odom__base_link.transform.translation.x = float(self.pose.x)
+            # odom__base_link.transform.translation.y = float(self.pose.y)
 
         else:
             self.move.linear.x = 0.0
@@ -155,10 +175,10 @@ class Robot(Node):
             odom__base_link.transform.translation.x = 6.5
             odom__base_link.transform.translation.y = 6.5
 
-            self.get_logger().info("Not Moving!")
+            #self.get_logger().info("Not Moving!")
 
         self.cmd_vel_pub.publish(self.move)
-
+        #self.hit_targ_pub.publish(self.targ)
 
         """NOTEE TO SELF
         

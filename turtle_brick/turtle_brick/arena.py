@@ -6,7 +6,9 @@ from pyrsistent import b
 import rclpy
 from rclpy.node import Node
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
-from tf2_ros import TransformBroadcaster
+from tf2_ros import TransformBroadcaster, TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 from geometry_msgs.msg import TransformStamped, Point
 from visualization_msgs.msg import Marker, MarkerArray
 from sensor_msgs.msg import JointState
@@ -22,6 +24,7 @@ class State(Enum):
     DROP = auto()
     START = auto()
     MOVE_BRICK = auto()
+    TARG = auto()
 
 
 class Arena(Node):
@@ -51,6 +54,11 @@ class Arena(Node):
         #create a subscriber to see if robot moves
         self.sub = self.create_subscription(RobotMove, "move_robot", self.robot_move_callback, 10)
 
+        #create a listener for brick position  
+        # self.tf_buffer = Buffer()  
+        # self.tf_brick_listener = TransformListener(self.tf_buffer, self)
+
+
         #create a publisher for if brick hit target (either platform or ground)
         #self.pub_hit_targ = self.create_publisher(Bool, "hit_targ", 10)
 
@@ -59,6 +67,9 @@ class Arena(Node):
 
         #create a service for brick to fall
         self.drop = self.create_service(Empty,"drop",self.drop_callback)
+
+        #create a subscriber for if brick hit target
+        #self.hit_targ_sub = self.create_subscription(Bool,'hit_targ',self.hit_targ_callback, 10)
 
         """
         NOTEE FOR SELF
@@ -172,6 +183,9 @@ class Arena(Node):
         self.goal = 0
         #self.hit_targ = Bool(False)
 
+        # self.odom = "odom"
+        # self.base = "base_link"
+
     def brick_callback(self, request, response):
         self.brick_init_x = request.x
         self.brick_init_y = request.y
@@ -184,6 +198,9 @@ class Arena(Node):
         response.y = self.brick_init_y
         response.z = self.brick_init_z
         return response
+
+    # def hit_targ_callback(self,msg):
+    #     self.targ = msg
 
     def robot_move_callback(self, msg):
         self.robot_move_data = msg
@@ -243,13 +260,35 @@ class Arena(Node):
             self.broadcaster.sendTransform(self.odom__brick_link)
             self.brick.header.stamp = self.get_clock().now().to_msg()
             self.pub_brick.publish(self.brick)
-            #self.pub_hit_targ.publish(self.hit_targ)
 
-        # if self.count1 > 20:
-        #     self.drop()
-        #     self.count1=0
-        # else:
-        #     self.count1+=1
+        #     if self.targ == True:
+        #         self.state = State.TARG
+
+        # elif self.state == State.TARG:
+        #     self.get_logger().info("TARG STATE!")
+        #     try:
+        #         base_t = self.tf_buffer.lookup_transform(
+        #         self.odom,
+        #         self.base,
+        # rclpy.time.Time())
+        #         #self.get_logger().info(f'transform: {base_t}')
+        #         #base_t = brick_t.transform.translation.x
+        #         #self.get_logger().info(f'base_t: {base_t}')
+        #     except TransformException as ex:
+        #                 #self.get_logger().info(
+        #                 #    f'Could not transform {self.odom} to {self.base}: {ex}')
+        #                 return
+        #     x_base = base_t.transform.translation.x
+        #     y_base = base_t.transform.translation.y
+
+        #     self.odom__brick_link.transform.translation.x = x_base
+        #     self.odom__brick_link.transform.translation.y = y_base
+
+        #     time = self.get_clock().now().to_msg()
+        #     self.odom__brick_link.header.stamp = time
+        #     self.broadcaster.sendTransform(self.odom__brick_link)
+        #     self.brick.header.stamp = self.get_clock().now().to_msg()
+        #     self.pub_brick.publish(self.brick)
 
         #odom__brick_link.transform.translation.z = float(self.dz)
         #self.get_logger().info(f"State: {self.state}")

@@ -35,13 +35,9 @@ class Catcher(Node):
 
         self.get_logger().info("HI!")
 
-        # #create a listener for brick position  
+        #create a listener for brick position  
         self.tf_buffer = Buffer()  
         self.tf_brick_listener = TransformListener(self.tf_buffer, self)
-
-        # #create a listener for base_link position  
-        #self.tf_buffer2 = Buffer()  
-        #self.tf_base_listener = TransformListener(self.tf_buffer2, self)
 
         #create a publisher to send velocity commands to turtlesim
         self.goal_pose_pub = self.create_publisher(Point,"goal_pose",10)
@@ -191,9 +187,6 @@ class Catcher(Node):
             x_brick = brick_t.transform.translation.x
             y_brick = brick_t.transform.translation.y
             z_brick = brick_t.transform.translation.z
-
-            self.robot.x = x_brick
-            self.robot.y = y_brick
 
             z_difference = abs(z_brick - self.z_brick_prev)
 
