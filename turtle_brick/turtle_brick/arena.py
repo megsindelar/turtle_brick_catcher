@@ -10,6 +10,7 @@ from tf2_ros import TransformBroadcaster, TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from geometry_msgs.msg import TransformStamped, Point
+from turtlesim.msg import Pose
 from visualization_msgs.msg import Marker, MarkerArray
 from sensor_msgs.msg import JointState
 import std_srvs
@@ -55,10 +56,8 @@ class Arena(Node):
         #create a subscriber to see if robot moves
         self.sub = self.create_subscription(RobotMove, "move_robot", self.robot_move_callback, 10)
 
-        #create a listener for brick position  
-        # self.tf_buffer = Buffer()  
-        # self.tf_brick_listener = TransformListener(self.tf_buffer, self)  
-
+        #create a subscriber for turtle pose
+        self.turtle_sub = self.create_subscription(Pose, "turtle1/pose", self.turtle_pose_callback, 10)
 
         #create a publisher for if brick hit target (either platform or ground)
         self.pub_brick_hit = self.create_publisher(Bool, "brick_hit", 10)
@@ -185,6 +184,8 @@ class Arena(Node):
         self.brick_hit = Bool()
         self.brick_hit.data = False
 
+        self.turtle_pose = Pose()
+
         # self.odom = "odom"
         # self.base = "base_link"
 
@@ -205,6 +206,9 @@ class Arena(Node):
         self.targ = msg
         if self.targ.data == True:
             self.state = State.TARG
+
+    def turtle_pose_callback(self,msg):
+        self.turtle_pose = msg
 
     def robot_move_callback(self, msg):
         self.robot_move_data = msg
@@ -269,29 +273,15 @@ class Arena(Node):
 
         elif self.state == State.TARG:
             self.get_logger().info("TARG STATE!")
-        #     try:
-        #         base_t = self.tf_buffer.lookup_transform(
-        #         self.odom,
-        #         self.base,
-        # rclpy.time.Time())
-        #         #self.get_logger().info(f'transform: {base_t}')
-        #         #base_t = brick_t.transform.translation.x
-        #         #self.get_logger().info(f'base_t: {base_t}')
-        #     except TransformException as ex:
-        #                 #self.get_logger().info(
-        #                 #    f'Could not transform {self.odom} to {self.base}: {ex}')
-        #                 return
-        #     x_base = base_t.transform.translation.x
-        #     y_base = base_t.transform.translation.y
 
-        #     self.odom__brick_link.transform.translation.x = x_base
-        #     self.odom__brick_link.transform.translation.y = y_base
+            self.odom__brick_link.transform.translation.x = self.turtle_pose.x
+            self.odom__brick_link.transform.translation.y = self.turtle_pose.y
 
-        #     time = self.get_clock().now().to_msg()
-        #     self.odom__brick_link.header.stamp = time
-        #     self.broadcaster.sendTransform(self.odom__brick_link)
-        #     self.brick.header.stamp = self.get_clock().now().to_msg()
-        #     self.pub_brick.publish(self.brick)
+            time = self.get_clock().now().to_msg()
+            self.odom__brick_link.header.stamp = time
+            self.broadcaster.sendTransform(self.odom__brick_link)
+            self.brick.header.stamp = self.get_clock().now().to_msg()
+            self.pub_brick.publish(self.brick)
 
         #odom__brick_link.transform.translation.z = float(self.dz)
         #self.get_logger().info(f"State: {self.state}")

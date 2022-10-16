@@ -205,7 +205,7 @@ class Robot(Node):
             #self.get_logger().info("Not Moving!")
 
 
-        self.get_logger().info(f'move_turtle: {self.move}')
+        #self.get_logger().info(f'move_turtle: {self.move}')
         self.cmd_vel_pub.publish(self.move)
         self.hit_targ_pub.publish(self.targ)
 
