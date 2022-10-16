@@ -11,6 +11,7 @@ from turtlesim.msg import Pose
 from sensor_msgs.msg import JointState
 from .quaternion import angle_axis_to_quaternion
 from std_msgs.msg import Bool
+from turtle_brick_interfaces.msg import RobotMove
 
 class Robot(Node):
     """ Move robot link/joint frames in space
@@ -32,6 +33,12 @@ class Robot(Node):
 
         #create a subscriber to goal_pose
         self.goal_pose_sub = self.create_subscription(Point,"goal_pose",self.goal_pose_callback,10)
+
+        #create a subscriber to see if robot moves
+        self.move_robot_sub = self.create_subscription(RobotMove, "move_robot", self.move_robot_callback, 10)
+
+        #create a subscriber for if brick hit target (either ground or platform)
+        #self.hit_targ_sub = self.create_subscription(Bool, "hit_targ", self.hit_targ_callback, 10)
 
         #create a listener for brick position  
         self.tf_buffer = Buffer()  
@@ -60,6 +67,12 @@ class Robot(Node):
 
         self.i = 0
         self.count = 0
+        self.robot_move = False
+
+        self.max_vel = 0.22
+
+        self.move_robot_now = 0
+        self.wait = 0
 
         #create a subscriber to turtle_pose
         self.turtle_pose = self.create_subscription(Pose, "turtle1/pose", self.turtle_pose_callback, 10)
@@ -71,17 +84,74 @@ class Robot(Node):
         self.goal = msg
         self.get_logger().info(f'goal pose: {self.goal}')
 
+    # def hit_targ_callback(self,msg):
+    #     self.hit_targ = msg
+    #     self.get_logger().info(f'hit targ: {self.hit_targ}')
+
+    def move_robot_callback(self,msg):
+        self.brick = msg
+        self.brick_x = self.brick.x
+        self.brick_y = self.brick.y
+        self.robot_move = self.brick.robotmove
+
     def timer(self):
-        
+        odom__base_link = TransformStamped()
+        time = self.get_clock().now().to_msg()
+        odom__base_link.header.frame_id = "odom"
+        odom__base_link.child_frame_id = "base_link"
+        odom__base_link.header.stamp = time
+
         if self.i<8:
             self.lx += 1.0
             self.i+=1
 
-        # move = Twist(linear = Vector3(x = float(self.lx), y = 0.0, z = 0.0),
-        #             angular = Vector3(x = 0.0, y = 0.0, z = 1.0))
-        # self.cmd_vel_pub.publish(move)
+        if self.robot_move == True:
+            self.move_robot_now = 1
 
-        odom__base_link = TransformStamped()
+        if self.move_robot_now == 1:
+            
+            move = Twist()
+
+            self.diff_x = self.brick_x - self.pose.x
+            self.diff_y = self.brick_y - self.pose.y
+
+            if self.diff_x > 0:
+                move.linear.x = self.max_vel
+            elif self.diff_x < 0:
+                move.linear.x = -self.max_vel
+            else:
+                move.linear.x = 0.0
+                
+            if self.diff_y > 0:
+                move.linear.y = self.max_vel
+            elif self.diff_y < 0:
+                move.linear.y = -self.max_vel
+            else:
+                move.linear.y = 0.0
+
+            self.abs_diff_x = abs(self.brick_x - self.pose.x)
+            self.abs_diff_y = abs(self.brick_y - self.pose.y)
+
+            if self.abs_diff_x < 0.01 and self.abs_diff_y < 0.01:
+                self.move_robot_now = 0
+                self.wait = 1
+
+            odom__base_link.transform.translation.x = float(self.pose.x)
+            odom__base_link.transform.translation.y = float(self.pose.y)
+        
+        elif self.move_robot_now == 0 and self.wait == 1:
+            #if self.hit_targ == True:
+            self.get_logger().info("Waiting")    
+
+        else:
+            move = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0),
+                        angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
+
+            odom__base_link.transform.translation.x = 6.5
+            odom__base_link.transform.translation.y = 6.5
+
+        self.cmd_vel_pub.publish(move)
+
 
         """NOTEE TO SELF
         
@@ -89,15 +159,7 @@ class Robot(Node):
         """
 
         #if self.count == 30:
-        time = self.get_clock().now().to_msg()
-        odom__base_link.header.frame_id = "odom"
-        odom__base_link.child_frame_id = "base_link"
-        odom__base_link.header.stamp = time
-        odom__base_link.transform.translation.x = 7.0
-        odom__base_link.transform.translation.y = 4.0
-        # odom__base_link.transform.translation.x = float(self.pose.x)
-        # odom__base_link.transform.translation.y = float(self.pose.y)
-
+    
 
         self.broadcaster.sendTransform(odom__base_link)
         #else:

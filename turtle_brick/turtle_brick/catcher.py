@@ -192,6 +192,9 @@ class Catcher(Node):
             y_brick = brick_t.transform.translation.y
             z_brick = brick_t.transform.translation.z
 
+            self.robot.x = x_brick
+            self.robot.y = y_brick
+
             z_difference = abs(z_brick - self.z_brick_prev)
 
             #if self.F == 1:

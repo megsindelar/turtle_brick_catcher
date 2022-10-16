@@ -51,6 +51,9 @@ class Arena(Node):
         #create a subscriber to see if robot moves
         self.sub = self.create_subscription(RobotMove, "move_robot", self.robot_move_callback, 10)
 
+        #create a publisher for if brick hit target (either platform or ground)
+        #self.pub_hit_targ = self.create_publisher(Bool, "hit_targ", 10)
+
         #create a service for brick to fall
         self.place = self.create_service(Place,"place",self.brick_callback)
 
@@ -166,6 +169,7 @@ class Arena(Node):
         self.freq = 250
 
         self.F_move = 0
+        #self.hit_targ = Bool(False)
 
     def brick_callback(self, request, response):
         self.brick_init_x = request.x
@@ -188,7 +192,6 @@ class Arena(Node):
     def drop_callback(self, request, response):
         self.state = State.DROP
         self.n = 1
-        self.F_move = 0
         return response
 
     def timer_wall(self):
@@ -216,21 +219,19 @@ class Arena(Node):
             self.pub_brick.publish(self.brick)
 
         elif self.state == State.DROP:
-            self.get_logger().info(f"ROBMOV: {self.robot_move}")
-            if self.F_move == 0:
-                if self.robot_move == True:
-                    #brick falls to platform
-                    self.z_goal = self.plat_z + 0.1
-                    self.F_move = 1
-                else:
-                    self.z_goal = 0.0
-
-            self.get_logger().info(f"F: {self.F_move}")
-            self.get_logger().info(f"BITCH: {self.z_goal}")
+            if self.robot_move == True:
+                #brick falls to platform
+                self.z_goal = self.plat_z + 0.1
+                self.F_move = 1
+            else:
+                self.z_goal = 0.0
 
             if self.dz > self.z_goal:
                 self.dz = self.brick_init_z - 0.5*self.g*((self.n/self.freq)**2)
+                #self.hit_targ = Bool(False)
                 self.n+=1
+            #else:
+                #self.hit_targ = Bool(True)
 
             self.odom__brick_link.transform.translation.z = float(self.dz)
 
@@ -239,6 +240,7 @@ class Arena(Node):
             self.broadcaster.sendTransform(self.odom__brick_link)
             self.brick.header.stamp = self.get_clock().now().to_msg()
             self.pub_brick.publish(self.brick)
+            #self.pub_hit_targ.publish(self.hit_targ)
 
         # if self.count1 > 20:
         #     self.drop()
