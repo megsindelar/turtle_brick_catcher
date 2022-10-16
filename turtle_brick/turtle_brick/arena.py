@@ -25,6 +25,7 @@ class State(Enum):
     START = auto()
     MOVE_BRICK = auto()
     TARG = auto()
+    DROPPING = auto()
 
 
 class Arena(Node):
@@ -56,11 +57,11 @@ class Arena(Node):
 
         #create a listener for brick position  
         # self.tf_buffer = Buffer()  
-        # self.tf_brick_listener = TransformListener(self.tf_buffer, self)
+        # self.tf_brick_listener = TransformListener(self.tf_buffer, self)  
 
 
         #create a publisher for if brick hit target (either platform or ground)
-        #self.pub_hit_targ = self.create_publisher(Bool, "hit_targ", 10)
+        self.pub_brick_hit = self.create_publisher(Bool, "brick_hit", 10)
 
         #create a service for brick to fall
         self.place = self.create_service(Place,"place",self.brick_callback)
@@ -69,7 +70,7 @@ class Arena(Node):
         self.drop = self.create_service(Empty,"drop",self.drop_callback)
 
         #create a subscriber for if brick hit target
-        #self.hit_targ_sub = self.create_subscription(Bool,'hit_targ',self.hit_targ_callback, 10)
+        self.hit_targ_sub = self.create_subscription(Bool,'hit_targ',self.hit_targ_callback, 10)
 
         """
         NOTEE FOR SELF
@@ -181,7 +182,8 @@ class Arena(Node):
 
         self.F_move = 0
         self.goal = 0
-        #self.hit_targ = Bool(False)
+        self.brick_hit = Bool()
+        self.brick_hit.data = False
 
         # self.odom = "odom"
         # self.base = "base_link"
@@ -199,8 +201,10 @@ class Arena(Node):
         response.z = self.brick_init_z
         return response
 
-    # def hit_targ_callback(self,msg):
-    #     self.targ = msg
+    def hit_targ_callback(self,msg):
+        self.targ = msg
+        if self.targ.data == True:
+            self.state = State.TARG
 
     def robot_move_callback(self, msg):
         self.robot_move_data = msg
@@ -208,7 +212,8 @@ class Arena(Node):
         self.plat_z = self.robot_move_data.height
 
     def drop_callback(self, request, response):
-        self.state = State.DROP
+        if self.state == State.MOVE_BRICK:
+            self.state = State.DROP
         self.n = 1
         return response
 
@@ -237,21 +242,13 @@ class Arena(Node):
             self.pub_brick.publish(self.brick)
 
         elif self.state == State.DROP:
-            if self.robot_move == True:
-                self.goal = 1
-                    #brick falls to platform
-            if self.goal == 1:
-                self.z_goal = self.plat_z + 0.1
-                self.F_move = 1
-            else:
-                self.z_goal = 0.0
+            #brick falls to platform
+            self.z_goal = self.plat_z + 0.05
+            self.F_move = 1
 
             if self.dz > self.z_goal:
                 self.dz = self.brick_init_z - 0.5*self.g*((self.n/self.freq)**2)
-                #self.hit_targ = Bool(False)
                 self.n+=1
-            #else:
-                #self.hit_targ = Bool(True)
 
             self.odom__brick_link.transform.translation.z = float(self.dz)
 
@@ -261,11 +258,17 @@ class Arena(Node):
             self.brick.header.stamp = self.get_clock().now().to_msg()
             self.pub_brick.publish(self.brick)
 
-        #     if self.targ == True:
-        #         self.state = State.TARG
 
-        # elif self.state == State.TARG:
-        #     self.get_logger().info("TARG STATE!")
+            self.get_logger().info(f'brick actually hit: {self.brick_hit}')
+            self.abs_z = abs(self.dz - self.z_goal)
+            self.get_logger().info(f'abs: {self.abs_z}')
+            if self.abs_z < 0.08:
+                self.brick_hit.data = True
+                self.get_logger().info(f'brick actually hit: {self.brick_hit}')
+                
+
+        elif self.state == State.TARG:
+            self.get_logger().info("TARG STATE!")
         #     try:
         #         base_t = self.tf_buffer.lookup_transform(
         #         self.odom,
@@ -293,6 +296,7 @@ class Arena(Node):
         #odom__brick_link.transform.translation.z = float(self.dz)
         #self.get_logger().info(f"State: {self.state}")
 
+        self.pub_brick_hit.publish(self.brick_hit)
         
 def arena_entry(args=None):
     rclpy.init(args=args)

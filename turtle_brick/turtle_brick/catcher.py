@@ -76,7 +76,7 @@ class Catcher(Node):
         self.text.pose.position.z = 0.0
 
 
-        self.max_vel = 0.22
+        self.max_vel = 1.0
 
         self.odom = "odom"
         self.brick = "brick"
@@ -191,13 +191,16 @@ class Catcher(Node):
             z_difference = abs(z_brick - self.z_brick_prev)
 
             #if self.F == 1:
-            if z_brick!=self.z_brick_prev and z_difference < 0.0005:
+            self.get_logger().info(f"z_brick: {z_brick}")
+            self.get_logger().info(f"z_brick_prev: {self.z_brick_prev}")
+            self.get_logger().info(f"z_difference: {z_difference}")
+            if z_brick != self.z_brick_prev and z_difference < 0.002:
                 self.brick_to_base(x_brick,y_brick,z_brick,x_plat,y_plat,z_plat)
-                #else:
-                    #self.get_logger().info('NOT READY!')
+            #    else:
+            #        self.get_logger().info('NOT READY!')
 
-            #else:
-            #    self.F = 1
+            else:
+                self.F = 1
                 #self.get_logger().info('HELLOOOOOOOOOOOOOOOO!')
 
             self.z_brick_prev = z_brick
