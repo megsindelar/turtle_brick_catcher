@@ -10,10 +10,12 @@ from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 import math
 from math import sqrt
-from std_msgs.msg import Bool
+from geometry_msgs.msg import Point
 from enum import Enum, auto
 from std_srvs.srv import Empty
+from std_msgs.msg import Bool
 from visualization_msgs.msg import Marker
+from turtle_brick_interfaces.msg import RobotMove
 
 class State(Enum):
     DETECTED = auto()
@@ -42,7 +44,10 @@ class Catcher(Node):
         #self.tf_base_listener = TransformListener(self.tf_buffer2, self)
 
         #create a publisher to send velocity commands to turtlesim
-        #self.goal_pose_pub = self.create_publisher(Bool,"goal_pose",10)
+        self.goal_pose_pub = self.create_publisher(Point,"goal_pose",10)
+
+        #create a publisher to say whether the robot will move
+        self.robot_move_pub = self.create_publisher(RobotMove, "move_robot", 10)
 
         #create marker publisher for brick
         self.pub_text = self.create_publisher(Marker,"visualization_marker",10)
@@ -94,6 +99,14 @@ class Catcher(Node):
 
         self.counter = 0
 
+        self.robot = RobotMove()
+
+        self.robot.robotmove = False
+
+        self.move = Point()
+
+        self.count = 0
+
 
     def brick_to_base(self,x_brick,y_brick,z_brick,x_plat,y_plat,z_plat):
         z_diff = z_brick - z_plat
@@ -106,25 +119,33 @@ class Catcher(Node):
         
             if t_r <= t_b:
                 #robot can catch the brick
-                move = True
-                #self.goal_pose_pub.publish(move)
-                self.get_logger().info(f"MOVE TO GOAL: {move}")
+                self.move.x = x_brick
+                self.move.y = y_brick
+                self.move.z = z_brick
+                self.goal_pose_pub.publish(self.move)
+
+                self.robot.robotmove = True
+                self.robot.height = z_plat
+                self.robot_move_pub.publish(self.robot)
+                self.get_logger().info(f"MOVE TO GOAL: {self.move}")
+                self.get_logger().info(f"Rob: {self.robot}")
                 self.marker = 0
+                # if self.count < 20:
+                #     self.count += 1
+                # else:
+                #     self.robot.robotmove = False
+                #     self.count = 0
                 self.state = State.DETECTED
 
             else:
-                #robot can't catch the brick  
-                move = False
-                #self.goal_pose_pub.publish(move)      
-                self.get_logger().info(f"Can't move to goal: {move}")
+                #robot can't catch the brick     
+                self.get_logger().info(f"Can't move to goal")
                 self.z_brick_prev = -10.0
                 #self.state = State.TRIED    
                 self.marker = 1
                 self.state = State.UNDETECTED
 
-        else:
-            move = False
-            #self.goal_pose_pub.publish(move)      
+        else: 
             self.get_logger().info("Brick starts below robot platform, can't move to goal!")
             self.z_brick_prev = -10.0
             #self.state = State.TRIED
@@ -154,6 +175,7 @@ class Catcher(Node):
             x_plat = x_base
             y_plat = y_base
             z_plat = z_base + 0.85
+            self.robot.height = z_plat
 
             try:
                 brick_t = self.tf_buffer.lookup_transform(
@@ -172,14 +194,14 @@ class Catcher(Node):
 
             z_difference = abs(z_brick - self.z_brick_prev)
 
-            if self.F == 1:
-                if z_brick!=self.z_brick_prev and z_difference < 0.0005:
-                    self.brick_to_base(x_brick,y_brick,z_brick,x_plat,y_plat,z_plat)
+            #if self.F == 1:
+            if z_brick!=self.z_brick_prev and z_difference < 0.0005:
+                self.brick_to_base(x_brick,y_brick,z_brick,x_plat,y_plat,z_plat)
                 #else:
                     #self.get_logger().info('NOT READY!')
 
-            else:
-                self.F = 1
+            #else:
+            #    self.F = 1
                 #self.get_logger().info('HELLOOOOOOOOOOOOOOOO!')
 
             self.z_brick_prev = z_brick
@@ -208,8 +230,7 @@ class Catcher(Node):
         # z_t_base = base_t.transform.translation.z + 0.85       #adding the height to the top of the platform
 
         #self.brick_to_base(x_t_brick,y_t_brick,z_t_brick,x_t_base,y_t_base,z_t_base)
-
-
+        self.robot_move_pub.publish(self.robot)
 
 def catcher_entry(args=None):
     rclpy.init(args=args)

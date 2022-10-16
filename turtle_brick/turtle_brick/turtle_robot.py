@@ -6,12 +6,11 @@ from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
-from geometry_msgs.msg import TransformStamped, Twist, Vector3
+from geometry_msgs.msg import TransformStamped, Twist, Vector3, Point
 from turtlesim.msg import Pose
 from sensor_msgs.msg import JointState
 from .quaternion import angle_axis_to_quaternion
 from std_msgs.msg import Bool
-
 
 class Robot(Node):
     """ Move robot link/joint frames in space
@@ -32,7 +31,7 @@ class Robot(Node):
         self.cmd_vel_pub = self.create_publisher(Twist, "turtle1/cmd_vel", 10)
 
         #create a subscriber to goal_pose
-        #self.goal_pose_sub = self.create_subscription(Bool,"goal_pose",self.goal_pose_callback,10)
+        self.goal_pose_sub = self.create_subscription(Point,"goal_pose",self.goal_pose_callback,10)
 
         #create a listener for brick position  
         self.tf_buffer = Buffer()  
@@ -68,8 +67,9 @@ class Robot(Node):
     def turtle_pose_callback(self,msg):
         self.pose = msg
 
-    # def goal_pose_callback(self,msg):
-    #     self.goal = msg
+    def goal_pose_callback(self,msg):
+        self.goal = msg
+        self.get_logger().info(f'goal pose: {self.goal}')
 
     def timer(self):
         

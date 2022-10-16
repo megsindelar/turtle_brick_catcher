@@ -12,8 +12,10 @@ from visualization_msgs.msg import Marker, MarkerArray
 from sensor_msgs.msg import JointState
 import std_srvs
 from std_srvs.srv import Empty
+from std_msgs.msg import Bool
 from .quaternion import angle_axis_to_quaternion
 from turtle_brick_interfaces.srv import Place
+from turtle_brick_interfaces.msg import RobotMove
 from enum import Enum, auto
 
 class State(Enum):
@@ -45,6 +47,9 @@ class Arena(Node):
 
         #create marker publisher for brick
         self.pub_brick = self.create_publisher(Marker,"visualization_marker",10)
+
+        #create a subscriber to see if robot moves
+        self.sub = self.create_subscription(RobotMove, "move_robot", self.robot_move_callback, 10)
 
         #create a service for brick to fall
         self.place = self.create_service(Place,"place",self.brick_callback)
@@ -160,6 +165,7 @@ class Arena(Node):
         self.g = 9.81
         self.freq = 250
 
+        self.F_move = 0
 
     def brick_callback(self, request, response):
         self.brick_init_x = request.x
@@ -174,9 +180,15 @@ class Arena(Node):
         response.z = self.brick_init_z
         return response
 
+    def robot_move_callback(self, msg):
+        self.robot_move_data = msg
+        self.robot_move = self.robot_move_data.robotmove
+        self.plat_z = self.robot_move_data.height
+
     def drop_callback(self, request, response):
         self.state = State.DROP
         self.n = 1
+        self.F_move = 0
         return response
 
     def timer_wall(self):
@@ -204,7 +216,19 @@ class Arena(Node):
             self.pub_brick.publish(self.brick)
 
         elif self.state == State.DROP:
-            if self.dz > 0.0:
+            self.get_logger().info(f"ROBMOV: {self.robot_move}")
+            if self.F_move == 0:
+                if self.robot_move == True:
+                    #brick falls to platform
+                    self.z_goal = self.plat_z + 0.1
+                    self.F_move = 1
+                else:
+                    self.z_goal = 0.0
+
+            self.get_logger().info(f"F: {self.F_move}")
+            self.get_logger().info(f"BITCH: {self.z_goal}")
+
+            if self.dz > self.z_goal:
                 self.dz = self.brick_init_z - 0.5*self.g*((self.n/self.freq)**2)
                 self.n+=1
 
@@ -224,6 +248,7 @@ class Arena(Node):
 
         #odom__brick_link.transform.translation.z = float(self.dz)
         #self.get_logger().info(f"State: {self.state}")
+
         
 def arena_entry(args=None):
     rclpy.init(args=args)
