@@ -11,7 +11,7 @@ from turtlesim.msg import Pose
 from sensor_msgs.msg import JointState
 from .quaternion import angle_axis_to_quaternion
 from std_msgs.msg import Bool
-from turtle_brick_interfaces.msg import RobotMove
+from turtle_brick_interfaces.msg import RobotMove, Tilt
 
 class Robot(Node):
     """ Move robot link/joint frames in space
@@ -26,7 +26,7 @@ class Robot(Node):
         self.static_broadcaster = StaticTransformBroadcaster(self)
         
         #create a joint_state_publisher
-        #self.joint_state_publisher = self.create_publisher(JointState, 'joint_states', 10)   #LEFT OFF HERE
+        self.joint_state_publisher = self.create_publisher(JointState, 'joint_states', 10)
 
         #create a publisher for cmd_vel   
         self.cmd_vel_pub = self.create_publisher(Twist, "turtle1/cmd_vel", 10)
@@ -43,9 +43,12 @@ class Robot(Node):
         #create a subscriber for if brick hit target (either platform or ground)
         self.brick_hit_sub = self.create_subscription(Bool, "brick_hit", self.brick_hit_callback, 10)
 
-        #create a listener for brick position  
-        # self.tf_buffer = Buffer()  
-        # self.tf_brick_listener = TransformListener(self.tf_buffer, self)
+        #create a subscriber to turtle_pose
+        self.turtle_pose = self.create_subscription(Pose, "turtle1/pose", self.turtle_pose_callback, 10)
+
+        #create a subsciber to tilt_plat to tilt the platform
+        self.tilt_plat_sub = self.create_subscription(Tilt, 'tilt_plat', self.tilt_plat_callback, 10)
+
 
         world__odom_link = TransformStamped()
         world__odom_link.header.stamp = self.get_clock().now().to_msg()
@@ -82,8 +85,13 @@ class Robot(Node):
 
         self.brick_hit = 0
 
-        #create a subscriber to turtle_pose
-        self.turtle_pose = self.create_subscription(Pose, "turtle1/pose", self.turtle_pose_callback, 10)
+        self.offset_plat_joint = 0.0
+        self.base_stem_joint = 0.0
+        self.stem_wheel_joint = 0.0
+        self.plat_joint_vel = 0.0
+        self.stem_joint_vel = 0.0
+        self.wheel_joint_vel = 0.0
+
 
     def brick_hit_callback(self,msg):
         self.brick_platform = msg
@@ -102,6 +110,10 @@ class Robot(Node):
         self.robot_move = self.brick.robotmove
         if self.robot_move == True:
             self.move_robot_now = 1
+
+    def tilt_plat_callback(self,msg):
+        self.plat_tilt_rad = msg.tilt
+        
 
     def timer(self):
         odom__base_link = TransformStamped()
@@ -181,10 +193,9 @@ class Robot(Node):
                 if self.move.linear.x == 0.0 and self.move.linear.y == 0.0:
                     self.wait = 0
 
-                self.get_logger().info(f'diff_x: {difference_x}')
-                self.get_logger().info(f'diff_y: {difference_y}')
-                self.get_logger().info(f'turtle_x: {self.move.linear.x}')
-                self.get_logger().info(f'turtle_y: {self.move.linear.y}')
+                    #joint states
+                    self.offset_plat_joint = self.plat_tilt_rad
+                    #self.plat_joint_vel = 0.2
 
                 odom__base_link.transform.translation.x = float(self.pose.x)
                 odom__base_link.transform.translation.y = float(self.pose.y)
@@ -209,36 +220,18 @@ class Robot(Node):
         self.cmd_vel_pub.publish(self.move)
         self.hit_targ_pub.publish(self.targ)
 
-        """NOTEE TO SELF
-        
-        maybe use a async function with waiting for future to wait for a turtlesim pose to then set odom frame
-        """
-
         #if self.count == 30:
-    
 
         self.broadcaster.sendTransform(odom__base_link)
+
+        self.joints = JointState()
+        self.joints.header.stamp = self.get_clock().now().to_msg()
+        self.joints.name = ['offset_to_platform', 'base_to_stem', 'stem_to_wheel']
+        self.joints.position = [float(self.offset_plat_joint), float(self.base_stem_joint), float(self.stem_wheel_joint)]
+        self.joints.velocity = [float(self.plat_joint_vel), float(self.stem_joint_vel), float(self.wheel_joint_vel)]
+        self.joint_state_publisher.publish(self.joints)
         #else:
         #    self.count+=1
-
-        #publish joint states to test
-        # joint = ["base_to_stem"]
-        # pose = float(0.5)
-        # vel = float(0.5)
-        # eff = float(0)
-        # move = JointState(name = joint, position = pose, velocity = vel, effort = eff)
-        # self.joint_state_publisher.publish(move)
-
-        # joint = ["base_to_stem"]
-        # pose = float(-0.5)
-        # vel = float(-0.5)
-        # eff = float(0)
-        # move = JointState(name = joint, position = pose, velocity = vel, effort = eff)
-        # self.joint_state_publisher.publish(move)
- 
-        #broadcast base_link constantly
-
-
 
 
 

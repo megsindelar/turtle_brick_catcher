@@ -48,7 +48,7 @@
   </joint>
 
   <joint name="offset_to_platform" type="continuous">
-    <axis xyz="1 1 1"/>
+    <axis xyz="1 0 0"/>
     <origin rpy="0 0 0" xyz="0 0 0.325"/>
     <parent link="offset"/>
     <child link="platform"/>

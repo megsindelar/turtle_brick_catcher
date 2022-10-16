@@ -18,6 +18,7 @@ find_package(turtlesim REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/Place.srv"
   "msg/RobotMove.msg"
+  "msg/Tilt.msg"
   DEPENDENCIES
   turtlesim
   )

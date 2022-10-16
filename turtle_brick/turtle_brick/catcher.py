@@ -1,6 +1,8 @@
 from email.mime import base
 from re import M
+from numpy import float64
 from sklearn.metrics import euclidean_distances
+from traitlets import Float
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
@@ -15,7 +17,7 @@ from enum import Enum, auto
 from std_srvs.srv import Empty
 from std_msgs.msg import Bool
 from visualization_msgs.msg import Marker
-from turtle_brick_interfaces.msg import RobotMove
+from turtle_brick_interfaces.msg import RobotMove, Tilt
 
 class State(Enum):
     DETECTED = auto()
@@ -48,6 +50,8 @@ class Catcher(Node):
         #create marker publisher for brick
         self.pub_text = self.create_publisher(Marker,"visualization_marker",10)
 
+        #create a publisher for tilt
+        self.pub_tilt = self.create_publisher(Tilt, "tilt_plat", 10)
 
         #Declare a frequency parameter for timer callback
         #self.declare_parameter("frequency", 100.0)
@@ -103,6 +107,9 @@ class Catcher(Node):
 
         self.count = 0
 
+        self.tilt_platform = Tilt()
+        self.tilt_platform.tilt = 0.6
+
 
     def brick_to_base(self,x_brick,y_brick,z_brick,x_plat,y_plat,z_plat):
         z_diff = z_brick - z_plat
@@ -126,6 +133,8 @@ class Catcher(Node):
                 self.get_logger().info(f"MOVE TO GOAL: {self.move}")
                 self.get_logger().info(f"Rob: {self.robot}")
                 self.marker = 0
+
+                self.pub_tilt.publish(self.tilt_platform)
                 # if self.count < 20:
                 #     self.count += 1
                 # else:
