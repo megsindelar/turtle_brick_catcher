@@ -169,6 +169,7 @@ class Arena(Node):
         self.freq = 250
 
         self.F_move = 0
+        self.goal = 0
         #self.hit_targ = Bool(False)
 
     def brick_callback(self, request, response):
@@ -220,7 +221,9 @@ class Arena(Node):
 
         elif self.state == State.DROP:
             if self.robot_move == True:
-                #brick falls to platform
+                self.goal = 1
+                    #brick falls to platform
+            if self.goal == 1:
                 self.z_goal = self.plat_z + 0.1
                 self.F_move = 1
             else:

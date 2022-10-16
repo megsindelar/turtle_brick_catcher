@@ -222,6 +222,7 @@ class Catcher(Node):
         elif self.state == State.DETECTED:
             #self.get_logger().info('Detected!')
             meg = self.max_vel
+            self.robot.robotmove = False
 
         # x_t_brick = brick_t.transform.translation.x
         # y_t_brick = brick_t.transform.translation.y

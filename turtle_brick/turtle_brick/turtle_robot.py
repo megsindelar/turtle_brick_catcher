@@ -108,26 +108,29 @@ class Robot(Node):
         if self.robot_move == True:
             self.move_robot_now = 1
 
+        self.move = Twist()
+
         if self.move_robot_now == 1:
-            
-            move = Twist()
 
             self.diff_x = self.brick_x - self.pose.x
             self.diff_y = self.brick_y - self.pose.y
 
             if self.diff_x > 0:
-                move.linear.x = self.max_vel
+                self.move.linear.x = self.max_vel
             elif self.diff_x < 0:
-                move.linear.x = -self.max_vel
+                self.move.linear.x = -self.max_vel
             else:
-                move.linear.x = 0.0
+                self.move.linear.x = 0.0
                 
             if self.diff_y > 0:
-                move.linear.y = self.max_vel
+                self.move.linear.y = self.max_vel
             elif self.diff_y < 0:
-                move.linear.y = -self.max_vel
+                self.move.linear.y = -self.max_vel
             else:
-                move.linear.y = 0.0
+                self.move.linear.y = 0.0
+
+            odom__base_link.transform.translation.x = float(self.pose.x)
+            odom__base_link.transform.translation.y = float(self.pose.y)
 
             self.abs_diff_x = abs(self.brick_x - self.pose.x)
             self.abs_diff_y = abs(self.brick_y - self.pose.y)
@@ -136,21 +139,25 @@ class Robot(Node):
                 self.move_robot_now = 0
                 self.wait = 1
 
-            odom__base_link.transform.translation.x = float(self.pose.x)
-            odom__base_link.transform.translation.y = float(self.pose.y)
         
         elif self.move_robot_now == 0 and self.wait == 1:
             #if self.hit_targ == True:
-            self.get_logger().info("Waiting")    
+            self.move.linear.x = 0.0
+            self.move.linear.y = 0.0
+            odom__base_link.transform.translation.x = float(self.pose.x)
+            odom__base_link.transform.translation.y = float(self.pose.y)
+
 
         else:
-            move = Twist(linear = Vector3(x = 0.0, y = 0.0, z = 0.0),
-                        angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
+            self.move.linear.x = 0.0
+            self.move.linear.y = 0.0
 
             odom__base_link.transform.translation.x = 6.5
             odom__base_link.transform.translation.y = 6.5
 
-        self.cmd_vel_pub.publish(move)
+            self.get_logger().info("Not Moving!")
+
+        self.cmd_vel_pub.publish(self.move)
 
 
         """NOTEE TO SELF
