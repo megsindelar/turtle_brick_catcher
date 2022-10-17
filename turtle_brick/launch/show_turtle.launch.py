@@ -11,13 +11,13 @@ from launch_ros.parameter_descriptions import ParameterValue
 def generate_launch_description():
     urdf_path = get_package_share_path('turtle_brick')
     default_model_path = urdf_path / 'turtle.urdf.xacro'
-    default_rviz_config_path = urdf_path / 'rvizconfig.rviz'
+    default_rviz_config_path = urdf_path / 'turtle_urdf.rviz'
 
     gui_arg = DeclareLaunchArgument(name='gui', default_value='true', choices=['true', 'false'],
                                     description='Flag to enable joint_state_publisher_gui')
     model_arg = DeclareLaunchArgument(name='model', default_value=str(default_model_path),
                                       description='Absolute path to robot urdf file')
-    rviz_arg = DeclareLaunchArgument(name='rvizconfig', default_value=str(default_rviz_config_path),
+    rviz_arg = DeclareLaunchArgument(name='turtle_urdf', default_value=str(default_rviz_config_path),
                                      description='Absolute path to rviz config file')
 
     robot_description = ParameterValue(Command(['xacro ', LaunchConfiguration('model')]),
@@ -47,7 +47,7 @@ def generate_launch_description():
     executable='rviz2',
     name='rviz2',
     output='screen',
-    arguments=['-d', LaunchConfiguration('rvizconfig')],
+    arguments=['-d', LaunchConfiguration('turtle_urdf')],
     )
 
     return LaunchDescription([
