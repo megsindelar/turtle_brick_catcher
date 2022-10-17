@@ -150,6 +150,8 @@ class Robot(Node):
             self.get_logger().info('Hi')
             self.diff_x = self.goal.x - self.pose.x
             self.diff_y = self.goal.y - self.pose.y
+            
+            self.F_tilt = 0
 
             if self.diff_x > 0:
                 self.move.linear.x = self.max_vel
@@ -189,6 +191,8 @@ class Robot(Node):
             
             if self.brick_hit == 1:
                 self.get_logger().info(f'brick_hit: {self.brick_hit}')
+
+                self.get_logger().info('AHHHHHHHHHHHHHHHH')
 
                 self.targ.data = True
 
@@ -230,6 +234,9 @@ class Robot(Node):
 
             #joint states
             if self.tilt_platform == 1:
+
+                self.targ.data = False
+
                 if self.F_tilt == 0:
                     if self.offset_plat_joint < self.plat_tilt_rad:
                         self.offset_plat_joint += 0.05
@@ -244,12 +251,13 @@ class Robot(Node):
                     else:
                         self.offset_plat_joint = 0.0
                         self.tilt_platform = 0
+                        self.brick_hit = 0
 
                 if self.F_tilt == 1 and self.brick_ground == True:
                     self.F_tilt = 2
 
-            self.get_logger().info(f'F_tilt: {self.F_tilt}')
-            self.get_logger().info(f'plat_joint: {self.offset_plat_joint}')
+            #self.get_logger().info(f'F_tilt: {self.F_tilt}')
+            #self.get_logger().info(f'plat_joint: {self.offset_plat_joint}')
 
 
         #self.get_logger().info(f'move_turtle: {self.move}')
@@ -267,7 +275,8 @@ class Robot(Node):
         self.joints.velocity = [float(self.plat_joint_vel), float(self.stem_joint_vel), float(self.wheel_joint_vel)]
         self.joint_state_publisher.publish(self.joints)
 
-        
+        self.get_logger().info(f'wait: {self.wait}')
+        self.get_logger().info(f'rob mov: {self.move_robot_now}')
         #else:
         #    self.count+=1
 

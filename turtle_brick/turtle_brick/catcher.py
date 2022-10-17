@@ -117,6 +117,8 @@ class Catcher(Node):
         self.brick_landed = Bool()
         self.brick_landed.data = False
 
+        self.F = 0
+
     def brick_to_base(self,x_brick,y_brick,z_brick,x_plat,y_plat,z_plat):
         z_diff = z_brick - z_plat
 
@@ -209,13 +211,13 @@ class Catcher(Node):
             self.get_logger().info(f"z_brick: {z_brick}")
             self.get_logger().info(f"z_brick_prev: {self.z_brick_prev}")
             self.get_logger().info(f"z_difference: {z_difference}")
-            if z_brick != self.z_brick_prev and z_difference < 0.002:
+            if z_brick != self.z_brick_prev and z_difference < 0.002 and self.F == 0:
                 self.brick_to_base(x_brick,y_brick,z_brick,x_plat,y_plat,z_plat)
             #    else:
             #        self.get_logger().info('NOT READY!')
 
             else:
-                self.F = 1
+                self.F = 0
                 #self.get_logger().info('HELLOOOOOOOOOOOOOOOO!')
 
             self.z_brick_prev = z_brick
@@ -261,6 +263,9 @@ class Catcher(Node):
 
             if z_brick == -0.9 and x_diff < 0.08 and y_diff < 0.91:
                 self.brick_landed.data = True
+                self.z_brick_prev = 0
+                self.F = 1
+                self.state = State.UNDETECTED
                 
 
         # x_t_brick = brick_t.transform.translation.x

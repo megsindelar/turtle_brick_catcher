@@ -225,8 +225,11 @@ class Arena(Node):
 
     def hit_targ_callback(self,msg):
         self.targ = msg
+        self.get_logger().info(f'targ: {self.targ.data}')
+        self.get_logger().info(f'done: {self.done}')
         if self.targ.data == True and self.done == 0:
             self.state = State.TARG
+            self.get_logger().info("hi buddy")
             self.done = 1
 
     def brick_tilt_callback(self,msg):
@@ -313,18 +316,19 @@ class Arena(Node):
             self.get_logger().info(f'diff x: {diff_x}')
             self.get_logger().info(f'diff y: {diff_y}')
 
+            if self.F_tilt == 1:
+                self.odom__brick_link.transform.rotation.x = 0.0
+                self.odom__brick_link.transform.translation.y = 5.05
+                self.odom__brick_link.transform.translation.z = -0.9
+                self.tilt_brick = 0
+                self.state = State.DONE
+
             if (diff_x < 0.01 and diff_y < 0.01) or self.tilt_brick == 1:
                 #tilt brick and fall off platform
                 self.get_logger().info("TILT BRICK")
                 self.tilt_brick = 1
 
-                if self.F_tilt == 1:
-                    self.odom__brick_link.transform.rotation.x = 0.0
-                    self.odom__brick_link.transform.translation.y = 5.05
-                    self.odom__brick_link.transform.translation.z = -0.9
-                    self.tilt_brick = 0
-                    self.state = State.DONE
-                else:
+                if self.F_tilt == 0:
                     self.odom__brick_link.transform.rotation.x = self.brick_tilt_rad
                     if self.y_brick_fall > 5.05:
                         self.y_brick_fall -= 0.01
@@ -343,7 +347,9 @@ class Arena(Node):
                     self.odom__brick_link.transform.translation.z = self.z_brick_fall
                     
 
-
+            self.get_logger().info(f'f tilt: {self.F_tilt}')
+            self.get_logger().info(f'z brick fall: {self.z_brick_fall}')
+            self.get_logger().info(f'y brick fall: {self.y_brick_fall}')
             self.get_logger().info(f'trans x: {self.odom__brick_link.transform.translation.x}')
             self.get_logger().info(f'trans y: {self.odom__brick_link.transform.translation.y}')
             self.get_logger().info(f'trans z: {self.odom__brick_link.transform.translation.z}')
@@ -358,13 +364,21 @@ class Arena(Node):
 
         elif self.state == State.DONE:
             self.brick_land.data = True
-            #self.get_logger().info("DONE")
+            self.get_logger().info("DONE")
             self.F_tilt = 0
+            self.brick_hit.data = False
+            self.done = 0
+
+            self.y_brick_fall = 5.5
+            self.z_brick_fall = 0.0
+
+            self.state = State.START
 
             time = self.get_clock().now().to_msg()
             self.odom__brick_link.header.stamp = time
             self.broadcaster.sendTransform(self.odom__brick_link)
             self.brick.header.stamp = self.get_clock().now().to_msg()
+            self.brick.lifetime.sec = 1
             self.pub_brick.publish(self.brick)
 
 
