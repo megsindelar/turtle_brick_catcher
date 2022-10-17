@@ -1,4 +1,5 @@
 from matplotlib.pyplot import angle_spectrum
+from sklearn.metrics import euclidean_distances
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
@@ -12,6 +13,7 @@ from sensor_msgs.msg import JointState
 from .quaternion import angle_axis_to_quaternion
 from std_msgs.msg import Bool
 from turtle_brick_interfaces.msg import RobotMove, Tilt
+import numpy as np
 
 class Robot(Node):
     """ Move robot link/joint frames in space
@@ -148,35 +150,52 @@ class Robot(Node):
 
         if self.move_robot_now == 1:
             self.get_logger().info('Hi')
-            self.diff_x = self.goal.x - self.pose.x
+            self.diff_x = self.goal.x - self.pose.x 
             self.diff_y = self.goal.y - self.pose.y
-            
+
+            self.get_logger().info(f'log diff x: {self.diff_x}')
+            self.get_logger().info(f'log diff y: {self.diff_y}')
+
+
+            self.get_logger().info(f'log pose x: {self.pose.x}')
+            self.get_logger().info(f'log pose y: {self.pose.y}')
+
+            self.theta = np.arctan2(self.diff_y, self.diff_x)
+            self.vel_x = self.max_vel*np.cos(self.theta)
+            self.vel_y = self.max_vel*np.sin(self.theta)
+
+            self.get_logger().info(f'log vel x: {self.vel_x}')
+            self.get_logger().info(f'log vel y: {self.vel_y}')
+
             self.F_tilt = 0
 
-            if self.diff_x > 0:
-                self.move.linear.x = self.max_vel
-            elif self.diff_x < 0:
-                self.move.linear.x = -self.max_vel
+            if abs(self.diff_x) > 0.05:
+                self.move.linear.x = float(self.vel_x)
             else:
                 self.move.linear.x = 0.0
                 
-            if self.diff_y > 0:
-                self.move.linear.y = self.max_vel
-            elif self.diff_y < 0:
-                self.move.linear.y = -self.max_vel
+            if abs(self.diff_y) > 0.05:
+                self.move.linear.y = float(self.vel_y)
             else:
                 self.move.linear.y = 0.0
 
             self.lin_x = self.move.linear.x
             self.lin_y = self.move.linear.y
 
+            self.cmd_vel_pub.publish(self.move)
+
             odom__base_link.transform.translation.x = float(self.pose.x)
             odom__base_link.transform.translation.y = float(self.pose.y)
 
             self.abs_diff_x = abs(self.goal.x - self.pose.x)
             self.abs_diff_y = abs(self.goal.y - self.pose.y)
+            self.get_logger().info(f'abs diff x: {self.abs_diff_x}')
+            self.get_logger().info(f'abs diff y: {self.abs_diff_y}')
+            self.get_logger().info(f'move x: {self.move.linear.x}')
+            self.get_logger().info(f'move y: {self.move.linear.y}')
+           
 
-            if self.abs_diff_x < 0.01 and self.abs_diff_y < 0.01:
+            if self.abs_diff_x < 0.05 and self.abs_diff_y < 0.05:
                 self.wait = 1
                 self.move_robot_now = 0
 
@@ -198,26 +217,45 @@ class Robot(Node):
 
                 x_center = 5.5
                 y_center = 5.5
-                difference_x = abs(self.pose.x - x_center)
-                difference_y = abs(self.pose.y - y_center)
+                self.difference_x = x_center - self.pose.x
+                self.difference_y = y_center - self.pose.y
 
-                if difference_x > 0.01:
-                    self.move.linear.x = -self.lin_x
+                self.theta = np.arctan2(self.difference_y, self.difference_x)
+                self.vel_x = self.max_vel*np.cos(self.theta)
+                self.vel_y = self.max_vel*np.sin(self.theta)
+
+                self.get_logger().info(f'log diff x: {self.difference_x}')
+                self.get_logger().info(f'log diff y: {self.difference_y}')
+
+
+                self.get_logger().info(f'log pose x: {self.pose.x}')
+                self.get_logger().info(f'log pose y: {self.pose.y}')
+
+                self.get_logger().info(f'log vel x: {self.vel_x}')
+                self.get_logger().info(f'log vel y: {self.vel_y}')
+
+
+                if abs(self.difference_x) > 0.05:
+                    self.move.linear.x = float(self.vel_x)
                 else:
                     self.move.linear.x = 0.0
-
-                if difference_y > 0.01:
-                    self.move.linear.y = -self.lin_y
+                    
+                if abs(self.difference_y) > 0.05:
+                    self.move.linear.y = float(self.vel_y)
                 else:
                     self.move.linear.y = 0.0
+
+                self.cmd_vel_pub.publish(self.move)
+
+                odom__base_link.transform.translation.x = float(self.pose.x)
+                odom__base_link.transform.translation.y = float(self.pose.y)
 
                 if self.move.linear.x == 0.0 and self.move.linear.y == 0.0:
                     self.wait = 0
                     self.tilt_platform = 1
                       
 
-                odom__base_link.transform.translation.x = float(self.pose.x)
-                odom__base_link.transform.translation.y = float(self.pose.y)
+              
 
         # elif self.move_robot_now == 0 and self.wait == 1:
         #     self.move.linear.x = 0.0
@@ -226,6 +264,7 @@ class Robot(Node):
         #     odom__base_link.transform.translation.y = float(self.pose.y)
 
         else:
+            print("NOOOOOOOOOOOOOOOOOO")
             self.move.linear.x = 0.0
             self.move.linear.y = 0.0
 
@@ -260,7 +299,7 @@ class Robot(Node):
             #self.get_logger().info(f'plat_joint: {self.offset_plat_joint}')
 
 
-        #self.get_logger().info(f'move_turtle: {self.move}')
+        self.get_logger().info(f'move_turtle: {self.move}')
         self.cmd_vel_pub.publish(self.move)
         self.hit_targ_pub.publish(self.targ)
 

@@ -323,7 +323,7 @@ class Arena(Node):
                 self.tilt_brick = 0
                 self.state = State.DONE
 
-            if (diff_x < 0.01 and diff_y < 0.01) or self.tilt_brick == 1:
+            if (diff_x < 0.05 and diff_y < 0.05) or self.tilt_brick == 1:
                 #tilt brick and fall off platform
                 self.get_logger().info("TILT BRICK")
                 self.tilt_brick = 1
@@ -368,6 +368,7 @@ class Arena(Node):
             self.F_tilt = 0
             self.brick_hit.data = False
             self.done = 0
+            self.tilt_brick = 0
 
             self.y_brick_fall = 5.5
             self.z_brick_fall = 0.0
