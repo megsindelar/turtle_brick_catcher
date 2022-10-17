@@ -18,7 +18,7 @@ from std_srvs.srv import Empty
 from std_msgs.msg import Bool
 from .quaternion import angle_axis_to_quaternion
 from turtle_brick_interfaces.srv import Place
-from turtle_brick_interfaces.msg import RobotMove
+from turtle_brick_interfaces.msg import RobotMove, Tilt
 from enum import Enum, auto
 
 class State(Enum):
@@ -27,6 +27,7 @@ class State(Enum):
     MOVE_BRICK = auto()
     TARG = auto()
     DROPPING = auto()
+    DONE = auto()
 
 
 class Arena(Node):
@@ -70,6 +71,9 @@ class Arena(Node):
 
         #create a subscriber for if brick hit target
         self.hit_targ_sub = self.create_subscription(Bool,'hit_targ',self.hit_targ_callback, 10)
+
+        #create a subscriber for tilt_plat to tilt brick
+        self.brick_tilt_sub = self.create_subscription(Tilt,'tilt_plat',self.brick_tilt_callback,10)
 
         """
         NOTEE FOR SELF
@@ -186,6 +190,15 @@ class Arena(Node):
 
         self.turtle_pose = Pose()
 
+        self.turtle_pose_past_x = 0
+        self.turtle_pose_past_y = 0
+
+        self.F_tilt = 0
+
+        self.tilt_brick = 0
+
+        self.done = 0
+
         # self.odom = "odom"
         # self.base = "base_link"
 
@@ -204,8 +217,13 @@ class Arena(Node):
 
     def hit_targ_callback(self,msg):
         self.targ = msg
-        if self.targ.data == True:
+        if self.targ.data == True and self.done == 0:
             self.state = State.TARG
+            self.done = 1
+
+    def brick_tilt_callback(self,msg):
+        self.brick_tilt_rad = msg.tilt
+        self.get_logger().info(f'brick tilt: {self.brick_tilt_rad}')
 
     def turtle_pose_callback(self,msg):
         self.turtle_pose = msg
@@ -231,6 +249,7 @@ class Arena(Node):
             self.odom__brick_link.header.frame_id = "odom"
             self.odom__brick_link.child_frame_id = "brick"
             self.odom__brick_link.header.stamp = time
+            self.done = 0
 
         elif self.state == State.MOVE_BRICK:
             self.odom__brick_link.transform.translation.x = self.brick_init_x
@@ -277,11 +296,51 @@ class Arena(Node):
             self.odom__brick_link.transform.translation.x = self.turtle_pose.x
             self.odom__brick_link.transform.translation.y = self.turtle_pose.y
 
+            x_center = 5.5
+            y_center = 5.5
+
+            diff_x = abs(x_center - self.odom__brick_link.transform.translation.x)
+            diff_y = abs(y_center - self.odom__brick_link.transform.translation.y)
+
+            self.get_logger().info(f'diff x: {diff_x}')
+            self.get_logger().info(f'diff y: {diff_y}')
+
+            if (diff_x < 0.01 and diff_y < 0.01) or self.tilt_brick == 1:
+                #tilt brick and fall off platform
+                self.get_logger().info("TILT BRICK")
+                self.tilt_brick = 1
+
+                if self.F_tilt == 1:
+                    self.odom__brick_link.transform.rotation.x = -self.brick_tilt_rad
+                    self.odom__brick_link.transform.translation.y = self.odom__brick_link.transform.translation.y - 0.45
+                    self.odom__brick_link.transform.translation.z = -0.9
+                    self.tilt_brick = 0
+                    self.get_logger().info("HELP SIR")
+                    self.state = State.DONE
+                else:
+                    self.odom__brick_link.transform.rotation.x = self.brick_tilt_rad
+                    self.odom__brick_link.transform.translation.y = self.odom__brick_link.transform.translation.y - 0.45
+                    self.odom__brick_link.transform.translation.z = -0.9
+                    self.get_logger().info("PLEASE SIR")
+                    self.F_tilt = 1
+
+
+            self.get_logger().info(f'trans x: {self.odom__brick_link.transform.translation.x}')
+            self.get_logger().info(f'trans y: {self.odom__brick_link.transform.translation.y}')
+            self.get_logger().info(f'trans z: {self.odom__brick_link.transform.translation.z}')
+            self.get_logger().info(f'rot x: {self.odom__brick_link.transform.rotation.x}')
+
+
             time = self.get_clock().now().to_msg()
             self.odom__brick_link.header.stamp = time
             self.broadcaster.sendTransform(self.odom__brick_link)
             self.brick.header.stamp = self.get_clock().now().to_msg()
             self.pub_brick.publish(self.brick)
+
+        elif self.state == State.DONE:
+            self.get_logger().info("DONE")
+            self.F_tilt = 0
+
 
         #odom__brick_link.transform.translation.z = float(self.dz)
         #self.get_logger().info(f"State: {self.state}")
