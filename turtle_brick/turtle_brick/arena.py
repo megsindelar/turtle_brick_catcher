@@ -63,6 +63,9 @@ class Arena(Node):
         #create a publisher for if brick hit target (either platform or ground)
         self.pub_brick_hit = self.create_publisher(Bool, "brick_hit", 10)
 
+        #create a publisher for if brick landed on the ground after platform tilt
+        self.pub_brick_landed = self.create_publisher(Bool, "brick_landed", 10)
+
         #create a service for brick to fall
         self.place = self.create_service(Place,"place",self.brick_callback)
 
@@ -199,6 +202,11 @@ class Arena(Node):
 
         self.done = 0
 
+        self.brick_land = Bool()
+        self.brick_land.data = False
+
+        self.y_brick_fall = 5.5
+        self.z_brick_fall = 0.0
         # self.odom = "odom"
         # self.base = "base_link"
 
@@ -311,18 +319,29 @@ class Arena(Node):
                 self.tilt_brick = 1
 
                 if self.F_tilt == 1:
-                    self.odom__brick_link.transform.rotation.x = -self.brick_tilt_rad
-                    self.odom__brick_link.transform.translation.y = self.odom__brick_link.transform.translation.y - 0.45
+                    self.odom__brick_link.transform.rotation.x = 0.0
+                    self.odom__brick_link.transform.translation.y = 5.05
                     self.odom__brick_link.transform.translation.z = -0.9
                     self.tilt_brick = 0
-                    self.get_logger().info("HELP SIR")
                     self.state = State.DONE
                 else:
                     self.odom__brick_link.transform.rotation.x = self.brick_tilt_rad
-                    self.odom__brick_link.transform.translation.y = self.odom__brick_link.transform.translation.y - 0.45
-                    self.odom__brick_link.transform.translation.z = -0.9
-                    self.get_logger().info("PLEASE SIR")
-                    self.F_tilt = 1
+                    if self.y_brick_fall > 5.05:
+                        self.y_brick_fall -= 0.01
+                    else:
+                        self.y_brick_fall = 5.05
+
+                    if self.z_brick_fall > -0.9:
+                        self.z_brick_fall -= 0.01
+                    else:
+                        self.z_brick_fall = -0.9
+
+                    if self.z_brick_fall == -0.9 and self.y_brick_fall == 5.05:
+                        self.F_tilt = 1
+
+                    self.odom__brick_link.transform.translation.y = self.y_brick_fall
+                    self.odom__brick_link.transform.translation.z = self.z_brick_fall
+                    
 
 
             self.get_logger().info(f'trans x: {self.odom__brick_link.transform.translation.x}')
@@ -338,13 +357,20 @@ class Arena(Node):
             self.pub_brick.publish(self.brick)
 
         elif self.state == State.DONE:
-            self.get_logger().info("DONE")
+            self.brick_land.data = True
+            #self.get_logger().info("DONE")
             self.F_tilt = 0
+
+            time = self.get_clock().now().to_msg()
+            self.odom__brick_link.header.stamp = time
+            self.broadcaster.sendTransform(self.odom__brick_link)
+            self.brick.header.stamp = self.get_clock().now().to_msg()
+            self.pub_brick.publish(self.brick)
 
 
         #odom__brick_link.transform.translation.z = float(self.dz)
         #self.get_logger().info(f"State: {self.state}")
-
+        self.pub_brick_landed.publish(self.brick_land)
         self.pub_brick_hit.publish(self.brick_hit)
         
 def arena_entry(args=None):

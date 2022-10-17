@@ -1,6 +1,7 @@
 from email.mime import base
 from re import M
 from numpy import float64
+from pyrsistent import b
 from sklearn.metrics import euclidean_distances
 from traitlets import Float
 import rclpy
@@ -52,6 +53,9 @@ class Catcher(Node):
 
         #create a publisher for tilt
         self.pub_tilt = self.create_publisher(Tilt, "tilt_plat", 10)
+
+        #create a publisher for when brick is on ground
+        self.brick_tilt_pub = self.create_publisher(Bool, 'brick_ground', 10)
 
         #Declare a frequency parameter for timer callback
         #self.declare_parameter("frequency", 100.0)
@@ -110,6 +114,8 @@ class Catcher(Node):
         self.tilt_platform = Tilt()
         self.tilt_platform.tilt = 0.6
 
+        self.brick_landed = Bool()
+        self.brick_landed.data = False
 
     def brick_to_base(self,x_brick,y_brick,z_brick,x_plat,y_plat,z_plat):
         z_diff = z_brick - z_plat
@@ -229,6 +235,34 @@ class Catcher(Node):
             meg = self.max_vel
             self.robot.robotmove = False
 
+            try:
+                brick_t = self.tf_buffer.lookup_transform(
+                self.odom,
+                self.brick,
+        rclpy.time.Time())
+                #self.get_logger().info(f'transform: {brick_t}')
+            except TransformException as ex:
+                        #self.get_logger().info(
+                        #    f'Could not transform {self.odom} to {self.brick}: {ex}')
+                        return
+
+            x_brick = brick_t.transform.translation.x
+            y_brick = brick_t.transform.translation.y
+            z_brick = brick_t.transform.translation.z
+
+            x_center = 5.5
+            y_center = 5.5
+
+            x_diff = abs(x_brick - x_center)
+            y_diff = abs(y_brick - y_center - 0.45)
+            self.get_logger().info(f'x_diff: {x_diff}')
+            self.get_logger().info(f'y_diff: {y_diff}')
+            self.get_logger().info(f'z_brick: {z_brick}')
+
+            if z_brick == -0.9 and x_diff < 0.08 and y_diff < 0.91:
+                self.brick_landed.data = True
+                
+
         # x_t_brick = brick_t.transform.translation.x
         # y_t_brick = brick_t.transform.translation.y
         # z_t_brick = brick_t.transform.translation.z
@@ -239,7 +273,10 @@ class Catcher(Node):
         # z_t_base = base_t.transform.translation.z + 0.85       #adding the height to the top of the platform
 
         #self.brick_to_base(x_t_brick,y_t_brick,z_t_brick,x_t_base,y_t_base,z_t_base)
+
+
         self.robot_move_pub.publish(self.robot)
+        self.brick_tilt_pub.publish(self.brick_landed)
 
 def catcher_entry(args=None):
     rclpy.init(args=args)

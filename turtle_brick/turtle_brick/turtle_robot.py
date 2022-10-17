@@ -49,6 +49,12 @@ class Robot(Node):
         #create a subsciber to tilt_plat to tilt the platform
         self.tilt_plat_sub = self.create_subscription(Tilt, 'tilt_plat', self.tilt_plat_callback, 10)
 
+        #create a subscriber to see if brick landed after platform tilt
+        self.brick_landed_sub = self.create_subscription(Bool, 'brick_landed', self.brick_landed_callback, 10)
+
+        #create a subsriber to see if brick is on ground
+        self.brick_ground_sub = self.create_subscription(Bool, 'brick_ground', self.brick_ground_callback, 10)
+
 
         world__odom_link = TransformStamped()
         world__odom_link.header.stamp = self.get_clock().now().to_msg()
@@ -62,6 +68,8 @@ class Robot(Node):
         self.broadcaster = TransformBroadcaster(self)
         #create a timer callback to broadcast transforms at 100 Hz
         self.timer = self.create_timer(0.01, self.timer)
+
+        #NEED TO TILT PLAT BACK
 
         self.dx = 1
         self.lx = 3.0
@@ -92,6 +100,10 @@ class Robot(Node):
         self.stem_joint_vel = 0.0
         self.wheel_joint_vel = 0.0
 
+        self.F_tilt = 0
+
+        self.tilt_platform = 0
+
 
     def brick_hit_callback(self,msg):
         self.brick_platform = msg
@@ -111,9 +123,14 @@ class Robot(Node):
         if self.robot_move == True:
             self.move_robot_now = 1
 
+    def brick_ground_callback(self,msg):
+        self.brick_ground = msg.data
+
     def tilt_plat_callback(self,msg):
         self.plat_tilt_rad = msg.tilt
-        
+
+    def brick_landed_callback(self,msg):
+        self.brick_land = msg.data
 
     def timer(self):
         odom__base_link = TransformStamped()
@@ -192,10 +209,8 @@ class Robot(Node):
 
                 if self.move.linear.x == 0.0 and self.move.linear.y == 0.0:
                     self.wait = 0
-
-                    #joint states
-                    self.offset_plat_joint = self.plat_tilt_rad
-                    #self.plat_joint_vel = 0.2
+                    self.tilt_platform = 1
+                      
 
                 odom__base_link.transform.translation.x = float(self.pose.x)
                 odom__base_link.transform.translation.y = float(self.pose.y)
@@ -213,7 +228,28 @@ class Robot(Node):
             odom__base_link.transform.translation.x = 5.5
             odom__base_link.transform.translation.y = 5.5
 
-            #self.get_logger().info("Not Moving!")
+            #joint states
+            if self.tilt_platform == 1:
+                if self.F_tilt == 0:
+                    if self.offset_plat_joint < self.plat_tilt_rad:
+                        self.offset_plat_joint += 0.05
+                    else:
+                        self.offset_plat_joint = self.plat_tilt_rad
+                        self.F_tilt = 1
+
+                elif self.F_tilt == 2:
+                    if self.offset_plat_joint > 0.0:
+                        self.offset_plat_joint -= 0.05
+                        self.get_logger().info(f'plat_joint_in: {self.offset_plat_joint}')
+                    else:
+                        self.offset_plat_joint = 0.0
+                        self.tilt_platform = 0
+
+                if self.F_tilt == 1 and self.brick_ground == True:
+                    self.F_tilt = 2
+
+            self.get_logger().info(f'F_tilt: {self.F_tilt}')
+            self.get_logger().info(f'plat_joint: {self.offset_plat_joint}')
 
 
         #self.get_logger().info(f'move_turtle: {self.move}')
@@ -230,6 +266,8 @@ class Robot(Node):
         self.joints.position = [float(self.offset_plat_joint), float(self.base_stem_joint), float(self.stem_wheel_joint)]
         self.joints.velocity = [float(self.plat_joint_vel), float(self.stem_joint_vel), float(self.wheel_joint_vel)]
         self.joint_state_publisher.publish(self.joints)
+
+        
         #else:
         #    self.count+=1
 
