@@ -37,7 +37,7 @@
       <geometry>
         <cylinder length="0.1" radius="0.3"/>
       </geometry>
-      <origin rpy="0 -1.57075 0" xyz="0 0 0.3"/>
+      <origin rpy="0 -1.57075 0"/>
     </visual>
   </link>
 
@@ -62,8 +62,8 @@
   </joint>
 
   <joint name="stem_to_wheel" type="continuous">
-    <axis xyz="0 0 -1"/>
-    <origin xyz="0 0 -0.7"/>
+    <axis xyz="1 0 0"/>
+    <origin xyz="0 0 -0.4"/>
     <parent link="stem"/>
     <child link="wheel"/>
   </joint>

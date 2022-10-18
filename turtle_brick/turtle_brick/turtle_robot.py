@@ -38,9 +38,9 @@ class Robot(Node):
         self.declare_parameter('acceleration')
         self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
 
-        # self.plat_height = self.get_parameter('platform_height').get_parameter_value().double_value
-        # self.vel_max = self.get_parameter('max_velocity').get_parameter_value().double_value
-        # self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
+       # self.plat_height = self.get_parameter('platform_height').get_parameter_value().double_value
+       # self.vel_max = self.get_parameter('max_velocity').get_parameter_value().double_value
+       # self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
 
         
 
@@ -130,6 +130,8 @@ class Robot(Node):
 
         self.F_tilt = 0
 
+        self.wheel_roll = 0.0
+
         self.tilt_platform = 0
 
         self.wheel_turn = Odometry()
@@ -183,6 +185,8 @@ class Robot(Node):
 
         self.move = Twist()
 
+        self.get_logger().info('WAITING')
+
         if self.move_robot_now == 1:
             self.get_logger().info('Hi')
             self.diff_x = self.goal.x - self.pose.x 
@@ -199,22 +203,13 @@ class Robot(Node):
             self.vel_x = self.max_vel*np.cos(self.theta)
             self.vel_y = self.max_vel*np.sin(self.theta)
 
-            self.stem_wheel_joint = self.theta
+            if self.stem_wheel_joint < 30.0:
+                self.stem_wheel_joint += 0.05
+
+            self.base_stem_joint = self.theta
 
             self.get_logger().info(f'log vel x: {self.vel_x}')
             self.get_logger().info(f'log vel y: {self.vel_y}')
-
-
-            # self.wheel_turn.header.frame_id = "stem"
-            # self.wheel_turn.child_frame_id = "wheel"
-            # self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
-            # self.axis_wheel = [0, 0, 1.0]
-            # self.theta_wheel = 0.6
-            # self.quaternion = angle_axis_to_quaternion(self.theta_wheel, self.axis_wheel)
-            # self.wheel_turn.pose.pose.orientation = self.quaternion
-            # self.wheel_turn.twist.angular.z = 0.5
-
-            # self.wheel_odometry_pub.publish(self.wheel_turn)
 
 
             self.F_tilt = 0
@@ -248,6 +243,7 @@ class Robot(Node):
             if self.abs_diff_x < 0.05 and self.abs_diff_y < 0.05:
                 self.wait = 1
                 self.move_robot_now = 0
+                self.stem_wheel_joint = 0.0
 
         
         elif self.move_robot_now == 0 and self.wait == 1:
@@ -264,6 +260,9 @@ class Robot(Node):
                 self.get_logger().info('AHHHHHHHHHHHHHHHH')
 
                 self.targ.data = True
+
+                if self.stem_wheel_joint > -30.0:
+                    self.stem_wheel_joint -= 0.05
 
                 x_center = 5.5
                 y_center = 5.5
@@ -314,13 +313,13 @@ class Robot(Node):
         #     odom__base_link.transform.translation.y = float(self.pose.y)
 
         else:
-            print("NOOOOOOOOOOOOOOOOOO")
             self.move.linear.x = 0.0
             self.move.linear.y = 0.0
 
             odom__base_link.transform.translation.x = 5.5
             odom__base_link.transform.translation.y = 5.5
 
+            self.base_stem_joint = 0.0
             self.stem_wheel_joint = 0.0
 
             #joint states
@@ -339,6 +338,7 @@ class Robot(Node):
                     if self.offset_plat_joint > 0.0:
                         self.offset_plat_joint -= 0.05
                         self.get_logger().info(f'plat_joint_in: {self.offset_plat_joint}')
+                        self.get_logger().info('WWWWWWWWWWWWWWWWWWWWWWWWWW')
                     else:
                         self.offset_plat_joint = 0.0
                         self.tilt_platform = 0
@@ -375,8 +375,8 @@ class Robot(Node):
         self.joints.velocity = [float(self.plat_joint_vel), float(self.stem_joint_vel), float(self.wheel_joint_vel)]
         self.joint_state_publisher.publish(self.joints)
 
-        self.get_logger().info(f'wait: {self.wait}')
-        self.get_logger().info(f'rob mov: {self.move_robot_now}')
+        self.get_logger().info(f'stem wheel: {self.stem_wheel_joint}')
+       # self.get_logger().info(f'rob mov: {self.move_robot_now}')
         #else:
         #    self.count+=1
 
@@ -388,11 +388,11 @@ class Robot(Node):
         self.quaternion = angle_axis_to_quaternion(self.theta_wheel, self.axis_wheel)
         self.wheel_turn.pose.pose.orientation = self.quaternion
         self.wheel_turn.twist.twist.angular.z = 0.6
-        self.get_logger().info(f'wheel odom: {self.wheel_turn}')
+        
         self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
         self.wheel_odometry_pub.publish(self.wheel_turn)
 
-        self.get_logger().info(f'wheel rad: {self.wheel_rad}')
+        #self.get_logger().info(f'wheel rad: {self.wheel_rad}')
 
 
 
