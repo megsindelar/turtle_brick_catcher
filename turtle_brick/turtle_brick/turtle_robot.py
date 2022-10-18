@@ -1,8 +1,10 @@
+from this import d
 from tokenize import Double
 from types import NoneType
 from unicodedata import name
 from matplotlib.pyplot import angle_spectrum
 from sklearn.metrics import euclidean_distances
+from sympy import line_integrate
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
@@ -37,12 +39,6 @@ class Robot(Node):
         self.max_velocity = self.get_parameter('max_velocity').get_parameter_value().double_value
         self.declare_parameter('acceleration')
         self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
-
-       # self.plat_height = self.get_parameter('platform_height').get_parameter_value().double_value
-       # self.vel_max = self.get_parameter('max_velocity').get_parameter_value().double_value
-       # self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
-
-        
 
         #create a static broadcaster which will publish once to /tf_static
         self.static_broadcaster = StaticTransformBroadcaster(self)
@@ -79,9 +75,6 @@ class Robot(Node):
 
         #create a publisher for wheel odometry
         self.wheel_odometry_pub = self.create_publisher(Odometry, "odom", 10)
-
-        #create a subscriber for wheel odometry to test
-        #self.wheel_odometry_sub = self.create_subscription(Odometry, "odom", self.odom_callback, 10)
 
 
         world__odom_link = TransformStamped()
@@ -132,7 +125,12 @@ class Robot(Node):
 
         self.wheel_roll = 0.0
 
+        self.theta_wheel = 0.0
+
         self.tilt_platform = 0
+
+        self.vel_x = 0.0
+        self.vel_y = 0.0
 
         self.wheel_turn = Odometry()
         self.wheel_turn.pose
@@ -200,13 +198,17 @@ class Robot(Node):
             self.get_logger().info(f'log pose y: {self.pose.y}')
 
             self.theta = np.arctan2(self.diff_y, self.diff_x)
+            self.theta_turn = np.arctan2(self.diff_x, self.diff_y)
             self.vel_x = self.max_vel*np.cos(self.theta)
             self.vel_y = self.max_vel*np.sin(self.theta)
 
             if self.stem_wheel_joint < 30.0:
                 self.stem_wheel_joint += 0.05
 
-            self.base_stem_joint = self.theta
+            self.theta_wheel = self.stem_wheel_joint
+
+            self.base_stem_joint = self.theta_turn
+            self.theta_stem = self.theta_turn
 
             self.get_logger().info(f'log vel x: {self.vel_x}')
             self.get_logger().info(f'log vel y: {self.vel_y}')
@@ -215,18 +217,19 @@ class Robot(Node):
             self.F_tilt = 0
 
             if abs(self.diff_x) > 0.05:
-                self.move.linear.x = float(self.vel_x)
+                self.move_x = float(self.vel_x)
             else:
-                self.move.linear.x = 0.0
+                self.move_x= 0.0
                 
             if abs(self.diff_y) > 0.05:
-                self.move.linear.y = float(self.vel_y)
+                self.move_y = float(self.vel_y)
             else:
-                self.move.linear.y = 0.0
+                self.move_y = 0.0
 
-            self.lin_x = self.move.linear.x
-            self.lin_y = self.move.linear.y
-
+            self.lin_x = self.move_x
+            self.lin_y = self.move_y
+            self.move = Twist(linear = Vector3(x = self.max_vel*np.cos(self.theta), y = self.max_vel*np.sin(self.theta), z = 0.0),
+                    angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
             self.cmd_vel_pub.publish(self.move)
 
             odom__base_link.transform.translation.x = float(self.pose.x)
@@ -253,6 +256,15 @@ class Robot(Node):
             self.move.linear.y = 0.0
             odom__base_link.transform.translation.x = float(self.pose.x)
             odom__base_link.transform.translation.y = float(self.pose.y)
+
+            self.diff_x = self.goal.x - self.pose.x 
+            self.diff_y = self.goal.y - self.pose.y
+            self.theta = np.arctan2(self.diff_y, self.diff_x)
+            self.theta_turn = np.arctan2(self.diff_x, self.diff_y)
+            self.vel_x = self.max_vel*np.cos(self.theta)
+            self.vel_y = self.max_vel*np.sin(self.theta)
+            self.base_stem_joint = self.theta_turn
+            self.theta_stem = self.theta_turn
             
             if self.brick_hit == 1:
                 self.get_logger().info(f'brick_hit: {self.brick_hit}')
@@ -263,6 +275,8 @@ class Robot(Node):
 
                 if self.stem_wheel_joint > -30.0:
                     self.stem_wheel_joint -= 0.05
+
+                self.theta_wheel = self.stem_wheel_joint
 
                 x_center = 5.5
                 y_center = 5.5
@@ -285,21 +299,23 @@ class Robot(Node):
 
 
                 if abs(self.difference_x) > 0.05:
-                    self.move.linear.x = float(self.vel_x)
+                    self.move_x = float(self.vel_x)
                 else:
-                    self.move.linear.x = 0.0
+                    self.move_x = 0.0
                     
                 if abs(self.difference_y) > 0.05:
-                    self.move.linear.y = float(self.vel_y)
+                    self.move_y = float(self.vel_y)
                 else:
-                    self.move.linear.y = 0.0
+                    self.move_y = 0.0
 
+                self.move = Twist(linear = Vector3(x = self.max_vel*np.cos(self.theta), y = self.max_vel*np.sin(self.theta), z = 0.0),
+                    angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
                 self.cmd_vel_pub.publish(self.move)
 
                 odom__base_link.transform.translation.x = float(self.pose.x)
                 odom__base_link.transform.translation.y = float(self.pose.y)
 
-                if self.move.linear.x == 0.0 and self.move.linear.y == 0.0:
+                if self.move_x == 0.0 and self.move_y == 0.0:
                     self.wait = 0
                     self.tilt_platform = 1
                       
@@ -320,7 +336,9 @@ class Robot(Node):
             odom__base_link.transform.translation.y = 5.5
 
             self.base_stem_joint = 0.0
+            self.theta_stem = 0.0
             self.stem_wheel_joint = 0.0
+            self.theta_wheel = 0.0
 
             #joint states
             if self.tilt_platform == 1:
@@ -380,14 +398,28 @@ class Robot(Node):
         #else:
         #    self.count+=1
 
+
+        #Wheel odometry publisher
+        self.wheel_turn.header.frame_id = "base_link"
+        self.wheel_turn.child_frame_id = "stem"
+        self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
+        self.axis_wheel = [0, 0, 1]
+        self.quaternion = angle_axis_to_quaternion(self.theta_stem, self.axis_wheel)
+        self.wheel_turn.pose.pose.orientation = self.quaternion
+        self.wheel_turn.twist.twist.angular.z = self.theta_stem
+        
+        self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
+        self.wheel_odometry_pub.publish(self.wheel_turn)
+
         self.wheel_turn.header.frame_id = "stem"
         self.wheel_turn.child_frame_id = "wheel"
         self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
-        self.axis_wheel = [0, 0, 1.0]
-        self.theta_wheel = 0.6
+        self.axis_wheel = [1, 0, 0]
         self.quaternion = angle_axis_to_quaternion(self.theta_wheel, self.axis_wheel)
         self.wheel_turn.pose.pose.orientation = self.quaternion
-        self.wheel_turn.twist.twist.angular.z = 0.6
+        self.wheel_turn.twist.twist.angular.x = self.theta_wheel
+        self.wheel_turn.twist.twist.linear.x = self.vel_x
+        self.wheel_turn.twist.twist.linear.y = self.vel_y
         
         self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
         self.wheel_odometry_pub.publish(self.wheel_turn)

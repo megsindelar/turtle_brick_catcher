@@ -1,0 +1,2 @@
+float64 height
+bool robotmove
