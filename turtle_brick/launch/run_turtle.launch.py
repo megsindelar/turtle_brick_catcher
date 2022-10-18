@@ -14,8 +14,14 @@ from launch_ros.parameter_descriptions import ParameterValue
 def generate_launch_description():
     show_turtle_launch_file = IncludeLaunchDescription(PythonLaunchDescriptionSource([os.path.join(get_package_share_directory('turtle_brick')), '/show_turtle.launch.py']))
 
+    config = os.path.join(
+      get_package_share_directory('turtle_brick'),
+      'turtle.yaml'
+      )
+
     turtle_robot_node = Node(package='turtle_brick',
-        executable='turtle_robot'
+        executable='turtle_robot',
+        parameters=[config]
     )
 
     turtlesim_node = Node(package='turtlesim', executable='turtlesim_node')

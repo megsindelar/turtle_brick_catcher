@@ -1,3 +1,6 @@
+from tokenize import Double
+from types import NoneType
+from unicodedata import name
 from matplotlib.pyplot import angle_spectrum
 from sklearn.metrics import euclidean_distances
 import rclpy
@@ -7,12 +10,13 @@ from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
-from geometry_msgs.msg import TransformStamped, Twist, Vector3, Point
+from geometry_msgs.msg import TransformStamped, Twist, Vector3, Point, PoseWithCovariance, TwistWithCovariance
 from turtlesim.msg import Pose
 from sensor_msgs.msg import JointState
 from .quaternion import angle_axis_to_quaternion
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float64
 from turtle_brick_interfaces.msg import RobotMove, Tilt
+from nav_msgs.msg import Odometry
 import numpy as np
 
 class Robot(Node):
@@ -24,6 +28,22 @@ class Robot(Node):
     """
     def __init__(self):
         super().__init__('turtle_robot')
+        #load parameters from yaml file
+        self.declare_parameter('platform_height')
+        self.platform_height = self.get_parameter('platform_height').get_parameter_value().double_value
+        self.declare_parameter('wheel_radius')
+        self.wheel_rad = self.get_parameter('wheel_radius').get_parameter_value().double_value
+        self.declare_parameter('max_velocity')
+        self.max_velocity = self.get_parameter('max_velocity').get_parameter_value().double_value
+        self.declare_parameter('acceleration')
+        self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
+
+        # self.plat_height = self.get_parameter('platform_height').get_parameter_value().double_value
+        # self.vel_max = self.get_parameter('max_velocity').get_parameter_value().double_value
+        # self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
+
+        
+
         #create a static broadcaster which will publish once to /tf_static
         self.static_broadcaster = StaticTransformBroadcaster(self)
         
@@ -56,6 +76,12 @@ class Robot(Node):
 
         #create a subsriber to see if brick is on ground
         self.brick_ground_sub = self.create_subscription(Bool, 'brick_ground', self.brick_ground_callback, 10)
+
+        #create a publisher for wheel odometry
+        self.wheel_odometry_pub = self.create_publisher(Odometry, "odom", 10)
+
+        #create a subscriber for wheel odometry to test
+        #self.wheel_odometry_sub = self.create_subscription(Odometry, "odom", self.odom_callback, 10)
 
 
         world__odom_link = TransformStamped()
@@ -106,6 +132,11 @@ class Robot(Node):
 
         self.tilt_platform = 0
 
+        self.wheel_turn = Odometry()
+        self.wheel_turn.pose
+        self.wheel_pose = PoseWithCovariance()
+        self.wheel_twist = TwistWithCovariance()
+
 
     def brick_hit_callback(self,msg):
         self.brick_platform = msg
@@ -133,6 +164,10 @@ class Robot(Node):
 
     def brick_landed_callback(self,msg):
         self.brick_land = msg.data
+
+    # def odom_callback(self,msg):
+    #     self.wheel_odom = msg
+    #     self.get_logger().info(f'wheel odom sub: {self.wheel_odom}')
 
     def timer(self):
         odom__base_link = TransformStamped()
@@ -164,8 +199,23 @@ class Robot(Node):
             self.vel_x = self.max_vel*np.cos(self.theta)
             self.vel_y = self.max_vel*np.sin(self.theta)
 
+            self.stem_wheel_joint = self.theta
+
             self.get_logger().info(f'log vel x: {self.vel_x}')
             self.get_logger().info(f'log vel y: {self.vel_y}')
+
+
+            # self.wheel_turn.header.frame_id = "stem"
+            # self.wheel_turn.child_frame_id = "wheel"
+            # self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
+            # self.axis_wheel = [0, 0, 1.0]
+            # self.theta_wheel = 0.6
+            # self.quaternion = angle_axis_to_quaternion(self.theta_wheel, self.axis_wheel)
+            # self.wheel_turn.pose.pose.orientation = self.quaternion
+            # self.wheel_turn.twist.angular.z = 0.5
+
+            # self.wheel_odometry_pub.publish(self.wheel_turn)
+
 
             self.F_tilt = 0
 
@@ -271,6 +321,8 @@ class Robot(Node):
             odom__base_link.transform.translation.x = 5.5
             odom__base_link.transform.translation.y = 5.5
 
+            self.stem_wheel_joint = 0.0
+
             #joint states
             if self.tilt_platform == 1:
 
@@ -303,6 +355,15 @@ class Robot(Node):
         self.cmd_vel_pub.publish(self.move)
         self.hit_targ_pub.publish(self.targ)
 
+
+        #wheel odometry publisher
+        # self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
+        # self.wheel_turn.header.frame_id = 
+        # self.wheel_turn.child_frame_id = 
+        # self.wheel_turn.pose = 
+        # self.wheel_turn.twist = 
+        # self.wheel_odometry_pub.publish(self.wheel_turn)
+
         #if self.count == 30:
 
         self.broadcaster.sendTransform(odom__base_link)
@@ -318,6 +379,20 @@ class Robot(Node):
         self.get_logger().info(f'rob mov: {self.move_robot_now}')
         #else:
         #    self.count+=1
+
+        self.wheel_turn.header.frame_id = "stem"
+        self.wheel_turn.child_frame_id = "wheel"
+        self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
+        self.axis_wheel = [0, 0, 1.0]
+        self.theta_wheel = 0.6
+        self.quaternion = angle_axis_to_quaternion(self.theta_wheel, self.axis_wheel)
+        self.wheel_turn.pose.pose.orientation = self.quaternion
+        self.wheel_turn.twist.twist.angular.z = 0.6
+        self.get_logger().info(f'wheel odom: {self.wheel_turn}')
+        self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
+        self.wheel_odometry_pub.publish(self.wheel_turn)
+
+        self.get_logger().info(f'wheel rad: {self.wheel_rad}')
 
 
 

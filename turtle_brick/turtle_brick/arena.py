@@ -81,7 +81,7 @@ class Arena(Node):
         """
         NOTEE FOR SELF
         
-        need to re-adjust wall 
+        need to re-adjust wall
         """
 
         #marker
@@ -277,7 +277,7 @@ class Arena(Node):
 
         elif self.state == State.DROP:
             #brick falls to platform
-            self.z_goal = self.plat_z + 0.05
+            self.z_goal = self.plat_z + 0.1 
             self.F_move = 1
 
             if self.dz > self.z_goal:
@@ -365,6 +365,11 @@ class Arena(Node):
         elif self.state == State.DONE:
             self.brick_land.data = True
             self.get_logger().info("DONE")
+
+            self.odom__brick_link.transform.translation.x = self.brick_init_x
+            self.odom__brick_link.transform.translation.y = self.brick_init_y
+            self.odom__brick_link.transform.translation.z = self.brick_init_z
+
             self.F_tilt = 0
             self.brick_hit.data = False
             self.done = 0
