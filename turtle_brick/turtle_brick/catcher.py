@@ -128,6 +128,9 @@ class Catcher(Node):
         self.brick_landed = Bool()
         self.brick_landed.data = False
 
+        self.z_plat_bottom = 0.226
+        self.z_plat = self.platform_height - (self.base_height/2) - self.stem_height - self.wheel_rad
+
         self.F = 0
 
     def brick_to_base(self,x_brick,y_brick,z_brick,x_plat,y_plat,z_plat):
@@ -197,9 +200,8 @@ class Catcher(Node):
             #transform base to platform
             x_plat = x_base
             y_plat = y_base
-            z_plat = self.platform_height - (self.base_height/2) - self.stem_height - self.wheel_rad
             #z_plat = z_base + 0.85
-            self.robot.height = z_plat
+            self.robot.height = self.z_plat
 
             try:
                 brick_t = self.tf_buffer.lookup_transform(
@@ -223,7 +225,7 @@ class Catcher(Node):
             self.get_logger().info(f"z_brick_prev: {self.z_brick_prev}")
             self.get_logger().info(f"z_difference: {z_difference}")
             if z_brick != self.z_brick_prev and z_difference < 0.002 and self.F == 0:
-                self.brick_to_base(x_brick,y_brick,z_brick,x_plat,y_plat,z_plat)
+                self.brick_to_base(x_brick,y_brick,z_brick,x_plat,y_plat,self.z_plat)
             #    else:
             #        self.get_logger().info('NOT READY!')
 
@@ -271,8 +273,8 @@ class Catcher(Node):
             self.get_logger().info(f'x_diff: {x_diff}')
             self.get_logger().info(f'y_diff: {y_diff}')
             self.get_logger().info(f'z_brick: {z_brick}')
-
-            if z_brick == -0.9 and x_diff < 0.08 and y_diff < 0.91:
+  
+            if z_brick == (self.z_plat - self.z_plat_bottom) and x_diff < 0.08 and y_diff < 0.91:
                 self.brick_landed.data = True
                 self.z_brick_prev = 0
                 self.F = 1
@@ -293,6 +295,7 @@ class Catcher(Node):
 
         self.robot_move_pub.publish(self.robot)
         self.brick_tilt_pub.publish(self.brick_landed)
+        self.get_logger().info(f'state: {self.state}')
 
 def catcher_entry(args=None):
     rclpy.init(args=args)

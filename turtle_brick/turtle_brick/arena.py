@@ -45,7 +45,10 @@ class Arena(Node):
         #load parameters from yaml
         self.declare_parameter('acceleration', 9.8)
         self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
-
+        self.declare_parameter('platform_height', 1.55)
+        self.platform_height = self.get_parameter('platform_height').get_parameter_value().double_value
+        self.declare_parameter('wheel_radius', 0.3)
+        self.wheel_rad = self.get_parameter('wheel_radius').get_parameter_value().double_value
 
         #create a broadcaster that will publish to /tf_static
         self.static_broadcaster = TransformBroadcaster(self)
@@ -201,6 +204,9 @@ class Arena(Node):
         self.turtle_pose_past_x = 0
         self.turtle_pose_past_y = 0
 
+        self.base_height = 0.4
+        self.stem_height = 0.2
+
         self.F_tilt = 0
 
         self.tilt_brick = 0
@@ -210,8 +216,11 @@ class Arena(Node):
         self.brick_land = Bool()
         self.brick_land.data = False
 
+        self.z_plat = self.platform_height - (self.base_height/2) - self.stem_height - self.wheel_rad
+        self.z_plat_bottom = 0.226
+
         self.y_brick_fall = 5.5
-        self.z_brick_fall = 0.0
+        self.z_brick_fall = self.z_plat
         # self.odom = "odom"
         # self.base = "base_link"
 
@@ -324,7 +333,7 @@ class Arena(Node):
             if self.F_tilt == 1:
                 self.odom__brick_link.transform.rotation.x = 0.0
                 self.odom__brick_link.transform.translation.y = 5.05
-                self.odom__brick_link.transform.translation.z = -0.9
+                self.odom__brick_link.transform.translation.z = (self.z_plat - self.z_plat_bottom)
                 self.tilt_brick = 0
                 self.state = State.DONE
 
@@ -340,12 +349,12 @@ class Arena(Node):
                     else:
                         self.y_brick_fall = 5.05
 
-                    if self.z_brick_fall > -0.9:
+                    if self.z_brick_fall > (self.z_plat - self.z_plat_bottom):
                         self.z_brick_fall -= 0.01
                     else:
-                        self.z_brick_fall = -0.9
+                        self.z_brick_fall = (self.z_plat - self.z_plat_bottom)
 
-                    if self.z_brick_fall == -0.9 and self.y_brick_fall == 5.05:
+                    if self.z_brick_fall == (self.z_plat - self.z_plat_bottom) and self.y_brick_fall == 5.05:
                         self.F_tilt = 1
 
                     self.odom__brick_link.transform.translation.y = self.y_brick_fall
@@ -381,7 +390,7 @@ class Arena(Node):
             self.tilt_brick = 0
 
             self.y_brick_fall = 5.5
-            self.z_brick_fall = 0.0
+            self.z_brick_fall = self.z_plat
 
             self.state = State.START
 
