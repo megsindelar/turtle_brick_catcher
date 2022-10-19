@@ -1,5 +1,11 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="turtle">
+<xacro:property name="yaml_file" value="$(find turtle_brick)/turtle.yaml" />
+<xacro:property name="props" value="${load_yaml(yaml_file)}" />
+<xacro:property name="start" value="${props['/**']}"/>
+<xacro:property name="ros__parameters" value="${start['ros__parameters']}"/>
+<xacro:property name="platform_height" value="${ros__parameters['platform_height']}"/>
+<xacro:property name="wheel_radius" value="${ros__parameters['wheel_radius']}"/>
   <link name="base_link">
     <visual>
       <geometry>
@@ -11,7 +17,7 @@
   <link name="offset">
     <visual>
       <geometry>
-        <cylinder length="0.6" radius="0.05"/>
+        <cylinder length="${platform_height - 0.05 - 0.2  - 0.4 - wheel_radius}" radius="0.05"/>
       </geometry>
     </visual>
   </link>
@@ -35,7 +41,7 @@
   <link name="wheel">
     <visual>
       <geometry>
-        <cylinder length="0.1" radius="0.3"/>
+        <cylinder length="0.1" radius="${wheel_radius}"/>
       </geometry>
       <origin rpy="0 -1.57075 0"/>
     </visual>
