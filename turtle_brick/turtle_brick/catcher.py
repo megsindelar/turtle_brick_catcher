@@ -238,11 +238,7 @@ class Catcher(Node):
             if self.marker == 1:
                 self.text.header.stamp = self.get_clock().now().to_msg()
                 self.pub_text.publish(self.text)
-                if self.counter < self.counts:
-                    self.counter+=1
-                else:
-                    self.marker=0
-                    self.counter=0
+            self.marker=0
 
 
         elif self.state == State.DETECTED:

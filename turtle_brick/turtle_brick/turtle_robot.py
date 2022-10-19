@@ -21,6 +21,17 @@ from turtle_brick_interfaces.msg import RobotMove, Tilt
 from nav_msgs.msg import Odometry
 import numpy as np
 
+def wheel_vel_turn(goal_x, goal_y, pose_x, pose_y, max_vel):
+    diff_x = goal_x - pose_x 
+    diff_y = goal_y - pose_y
+    theta = np.arctan2(diff_y, diff_x)
+    theta_turn = np.arctan2(diff_x, diff_y)
+    vel_x = max_vel*np.cos(theta)
+    vel_y = max_vel*np.sin(theta)
+
+    return theta, theta_turn, vel_x, vel_y
+
+
 class Robot(Node):
     """ Move robot link/joint frames in space
     
@@ -33,6 +44,8 @@ class Robot(Node):
         #load parameters from yaml file
         self.declare_parameter('max_velocity', 1.0)
         self.max_velocity = self.get_parameter('max_velocity').get_parameter_value().double_value
+        self.declare_parameter('wheel_radius', 0.3)
+        self.wheel_rad = self.get_parameter('wheel_radius').get_parameter_value().double_value
 
         #create a static broadcaster which will publish once to /tf_static
         self.static_broadcaster = StaticTransformBroadcaster(self)
@@ -79,10 +92,12 @@ class Robot(Node):
         world__odom_link.transform.translation.z = 1.0          #needs to be turtles initial conditions
         self.static_broadcaster.sendTransform(world__odom_link)
 
+
         #create a broadcaster that will repeatedly publish to /tf
         self.broadcaster = TransformBroadcaster(self)
         #create a timer callback to broadcast transforms at 100 Hz
-        self.timer = self.create_timer(0.01, self.timer)
+        self.freq = 100
+        self.timer = self.create_timer((1/self.freq), self.timer)
 
         #NEED TO TILT PLAT BACK
 
@@ -115,6 +130,8 @@ class Robot(Node):
         self.stem_joint_vel = 0.0
         self.wheel_joint_vel = 0.0
 
+        self.wheel_circ = 2*np.pi*self.wheel_rad
+
         self.F_tilt = 0
 
         self.wheel_roll = 0.0
@@ -125,6 +142,8 @@ class Robot(Node):
 
         self.vel_x = 0.0
         self.vel_y = 0.0
+
+        self.F_dist = 0
 
         self.odometry = Odometry()
         # self.wheel_turn.pose
@@ -158,16 +177,6 @@ class Robot(Node):
 
     def brick_landed_callback(self,msg):
         self.brick_land = msg.data
-
-    def wheel_vel_turn(self, goal_x, goal_y, pose_x, pose_y, max_vel):
-            diff_x = goal_x - pose_x 
-            diff_y = goal_y - pose_y
-            theta = np.arctan2(diff_y, diff_x)
-            theta_turn = np.arctan2(diff_x, diff_y)
-            vel_x = max_vel*np.cos(theta)
-            vel_y = max_vel*np.sin(theta)
-
-            return theta, theta_turn, vel_x, vel_y
 
 
     # def odom_callback(self,msg):
@@ -214,8 +223,19 @@ class Robot(Node):
             self.get_logger().info(f'vx: {self.vel_x}')
             self.get_logger().info(f'vy: {self.vel_y}')
 
-            if self.stem_wheel_joint < 30.0:
-                self.stem_wheel_joint += 0.05
+            if self.F_dist == 0:
+                self.euclid_dist = np.sqrt(self.diff_x**2 + self.diff_y**2)
+                self.F_dist = 1
+
+            self.stem_turn_step = (1/self.freq)*(self.wheel_circ/self.euclid_dist)*self.max_velocity
+            if self.stem_wheel_joint > -30.0:
+                self.stem_wheel_joint -= self.stem_turn_step
+
+            self.get_logger().info(f'STEPPPPPPPPPPPPPPPPPPPPPP: {self.stem_turn_step}')
+
+
+            # if self.stem_wheel_joint < 30.0:
+            #     self.stem_wheel_joint += 0.05
 
             self.theta_wheel = self.stem_wheel_joint
 
@@ -280,8 +300,11 @@ class Robot(Node):
 
                 self.targ.data = True
 
-                if self.stem_wheel_joint > -30.0:
-                    self.stem_wheel_joint -= 0.05
+                # if self.stem_wheel_joint > -30.0:
+                #     self.stem_wheel_joint -= 0.05
+
+                if self.stem_wheel_joint < 30.0:
+                    self.stem_wheel_joint += self.stem_turn_step
 
                 self.theta_wheel = self.stem_wheel_joint
 
