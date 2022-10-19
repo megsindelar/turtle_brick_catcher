@@ -2,5 +2,5 @@
    ros__parameters:
       platform_height: 1.55
       wheel_radius: 0.3
-      max_velocity: 0.22
+      max_velocity: 1.0
       acceleration: 9.8

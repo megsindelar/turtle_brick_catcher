@@ -42,6 +42,11 @@ class Arena(Node):
 
         self.state = State.START
 
+        #load parameters from yaml
+        self.declare_parameter('acceleration', 9.8)
+        self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
+
+
         #create a broadcaster that will publish to /tf_static
         self.static_broadcaster = TransformBroadcaster(self)
 
@@ -281,7 +286,7 @@ class Arena(Node):
             self.F_move = 1
 
             if self.dz > self.z_goal:
-                self.dz = self.brick_init_z - 0.5*self.g*((self.n/self.freq)**2)
+                self.dz = self.brick_init_z - 0.5*self.acceleration*((self.n/self.freq)**2)
                 self.n+=1
 
             self.odom__brick_link.transform.translation.z = float(self.dz)

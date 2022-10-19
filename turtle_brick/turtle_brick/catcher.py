@@ -38,6 +38,14 @@ class Catcher(Node):
 
         self.get_logger().info("HI!")
 
+        #load parameters from yaml
+        self.declare_parameter('platform_height', 1.55)
+        self.platform_height = self.get_parameter('platform_height').get_parameter_value().double_value
+        self.declare_parameter('wheel_radius', 0.3)
+        self.wheel_rad = self.get_parameter('wheel_radius').get_parameter_value().double_value
+        self.declare_parameter('acceleration', 9.8)
+        self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
+
         #create a listener for brick position  
         self.tf_buffer = Buffer()  
         self.tf_brick_listener = TransformListener(self.tf_buffer, self)
@@ -111,6 +119,9 @@ class Catcher(Node):
 
         self.count = 0
 
+        self.base_height = 0.4
+        self.stem_height = 0.2
+
         self.tilt_platform = Tilt()
         self.tilt_platform.tilt = 0.6
 
@@ -123,9 +134,8 @@ class Catcher(Node):
         z_diff = z_brick - z_plat
 
         if z_diff > 0:
-            g = 9.81
             euclid_dist = sqrt((x_brick - x_plat)**2 + (y_brick - y_plat)**2)
-            t_b = sqrt(((2*(z_brick - z_plat))/g))      #brick falling
+            t_b = sqrt(((2*(z_brick - z_plat))/self.acceleration))      #brick falling
             t_r = euclid_dist/self.max_vel
         
             if t_r <= t_b:
@@ -187,7 +197,8 @@ class Catcher(Node):
             #transform base to platform
             x_plat = x_base
             y_plat = y_base
-            z_plat = z_base + 0.85
+            z_plat = self.platform_height - (self.base_height/2) - self.stem_height - self.wheel_rad
+            #z_plat = z_base + 0.85
             self.robot.height = z_plat
 
             try:

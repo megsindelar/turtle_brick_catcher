@@ -31,14 +31,8 @@ class Robot(Node):
     def __init__(self):
         super().__init__('turtle_robot')
         #load parameters from yaml file
-        self.declare_parameter('platform_height')
-        self.platform_height = self.get_parameter('platform_height').get_parameter_value().double_value
-        self.declare_parameter('wheel_radius')
-        self.wheel_rad = self.get_parameter('wheel_radius').get_parameter_value().double_value
-        self.declare_parameter('max_velocity')
+        self.declare_parameter('max_velocity', 1.0)
         self.max_velocity = self.get_parameter('max_velocity').get_parameter_value().double_value
-        self.declare_parameter('acceleration')
-        self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
 
         #create a static broadcaster which will publish once to /tf_static
         self.static_broadcaster = StaticTransformBroadcaster(self)
@@ -104,7 +98,7 @@ class Robot(Node):
         self.count = 0
         self.robot_move = False
 
-        self.max_vel = 1.0
+        #self.max_vel = 1.0
 
         self.move_robot_now = 0
         self.wait = 0
@@ -132,10 +126,10 @@ class Robot(Node):
         self.vel_x = 0.0
         self.vel_y = 0.0
 
-        self.wheel_turn = Odometry()
-        self.wheel_turn.pose
-        self.wheel_pose = PoseWithCovariance()
-        self.wheel_twist = TwistWithCovariance()
+        self.odometry = Odometry()
+        # self.wheel_turn.pose
+        # self.wheel_pose = PoseWithCovariance()
+        # self.wheel_twist = TwistWithCovariance()
 
 
     def brick_hit_callback(self,msg):
@@ -204,14 +198,14 @@ class Robot(Node):
             self.get_logger().info(f'log diff x: {self.diff_x}')
             self.get_logger().info(f'log diff y: {self.diff_y}')
 
-            #self.theta, self.theta_turn, self.vel_x, self.vel_y = self.wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_vel)
+            #self.theta, self.theta_turn, self.vel_x, self.vel_y = self.wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_velocity)
             self.get_logger().info(f'log pose x: {self.pose.x}')
             self.get_logger().info(f'log pose y: {self.pose.y}')
 
             self.theta = np.arctan2(self.diff_y, self.diff_x)
             self.theta_turn = np.arctan2(self.diff_x, self.diff_y)
-            self.vel_x = self.max_vel*np.cos(self.theta)
-            self.vel_y = self.max_vel*np.sin(self.theta)
+            self.vel_x = self.max_velocity*np.cos(self.theta)
+            self.vel_y = self.max_velocity*np.sin(self.theta)
 
             if self.stem_wheel_joint < 30.0:
                 self.stem_wheel_joint += 0.05
@@ -239,7 +233,7 @@ class Robot(Node):
 
             self.lin_x = self.move_x
             self.lin_y = self.move_y
-            self.move = Twist(linear = Vector3(x = self.max_vel*np.cos(self.theta), y = self.max_vel*np.sin(self.theta), z = 0.0),
+            self.move = Twist(linear = Vector3(x = self.max_velocity*np.cos(self.theta), y = self.max_velocity*np.sin(self.theta), z = 0.0),
                     angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
             self.cmd_vel_pub.publish(self.move)
 
@@ -268,7 +262,7 @@ class Robot(Node):
             odom__base_link.transform.translation.x = float(self.pose.x)
             odom__base_link.transform.translation.y = float(self.pose.y)
 
-            self.theta, self.theta_turn, self.vel_x, self.vel_y = self.wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_vel)
+            self.theta, self.theta_turn, self.vel_x, self.vel_y = self.wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_velocity)
 
             self.base_stem_joint = self.theta_turn
             self.theta_stem = self.theta_turn
@@ -291,8 +285,8 @@ class Robot(Node):
                 self.difference_y = y_center - self.pose.y
 
                 self.theta = np.arctan2(self.difference_y, self.difference_x)
-                self.vel_x = self.max_vel*np.cos(self.theta)
-                self.vel_y = self.max_vel*np.sin(self.theta)
+                self.vel_x = self.max_velocity*np.cos(self.theta)
+                self.vel_y = self.max_velocity*np.sin(self.theta)
 
                 self.get_logger().info(f'log diff x: {self.difference_x}')
                 self.get_logger().info(f'log diff y: {self.difference_y}')
@@ -315,7 +309,7 @@ class Robot(Node):
                 else:
                     self.move_y = 0.0
 
-                self.move = Twist(linear = Vector3(x = self.max_vel*np.cos(self.theta), y = self.max_vel*np.sin(self.theta), z = 0.0),
+                self.move = Twist(linear = Vector3(x = self.max_velocity*np.cos(self.theta), y = self.max_velocity*np.sin(self.theta), z = 0.0),
                     angular = Vector3(x = 0.0, y = 0.0, z = 0.0))
                 self.cmd_vel_pub.publish(self.move)
 
@@ -407,29 +401,30 @@ class Robot(Node):
 
 
         #Wheel odometry publisher
-        self.wheel_turn.header.frame_id = "base_link"
-        self.wheel_turn.child_frame_id = "stem"
-        self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
-        self.axis_wheel = [0, 0, 1]
-        self.quaternion = angle_axis_to_quaternion(self.theta_stem, self.axis_wheel)
-        self.wheel_turn.pose.pose.orientation = self.quaternion
-        self.wheel_turn.twist.twist.angular.z = self.theta_stem
-        
-        self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
-        self.wheel_odometry_pub.publish(self.wheel_turn)
+        self.odometry.header.frame_id = "odom"
+        self.odometry.child_frame_id = "base_link"
+        self.odometry.header.stamp = self.get_clock().now().to_msg()
+        self.axis_wheel = [1, 1, 1]
+        self.odom_theta = 0.0
+        self.quaternion = angle_axis_to_quaternion(self.odom_theta, self.axis_wheel)
+        self.odometry.pose.pose.orientation = self.quaternion
+        self.odometry.pose.pose.position.x = odom__base_link.transform.translation.x
+        self.odometry.pose.pose.position.y = odom__base_link.transform.translation.y
+        self.odometry.pose.pose.position.z = odom__base_link.transform.translation.z
+        self.wheel_odometry_pub.publish(self.odometry)
 
-        self.wheel_turn.header.frame_id = "stem"
-        self.wheel_turn.child_frame_id = "wheel"
-        self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
-        self.axis_wheel = [1, 0, 0]
-        self.quaternion = angle_axis_to_quaternion(self.theta_wheel, self.axis_wheel)
-        self.wheel_turn.pose.pose.orientation = self.quaternion
-        self.wheel_turn.twist.twist.angular.x = self.theta_wheel
-        self.wheel_turn.twist.twist.linear.x = self.vel_x
-        self.wheel_turn.twist.twist.linear.y = self.vel_y
+        # self.wheel_turn.header.frame_id = "stem"
+        # self.wheel_turn.child_frame_id = "wheel"
+        # self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
+        # self.axis_wheel = [1, 0, 0]
+        # self.quaternion = angle_axis_to_quaternion(self.theta_wheel, self.axis_wheel)
+        # self.wheel_turn.pose.pose.orientation = self.quaternion
+        # self.wheel_turn.twist.twist.angular.x = self.theta_wheel
+        # self.wheel_turn.twist.twist.linear.x = self.vel_x
+        # self.wheel_turn.twist.twist.linear.y = self.vel_y
         
-        self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
-        self.wheel_odometry_pub.publish(self.wheel_turn)
+        # self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
+        # self.wheel_odometry_pub.publish(self.wheel_turn)
 
         #self.get_logger().info(f'wheel rad: {self.wheel_rad}')
 
