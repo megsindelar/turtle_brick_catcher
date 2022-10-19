@@ -165,6 +165,17 @@ class Robot(Node):
     def brick_landed_callback(self,msg):
         self.brick_land = msg.data
 
+    def wheel_vel_turn(self, goal_x, goal_y, pose_x, pose_y, max_vel):
+            diff_x = goal_x - pose_x 
+            diff_y = goal_y - pose_y
+            theta = np.arctan2(diff_y, diff_x)
+            theta_turn = np.arctan2(diff_x, diff_y)
+            vel_x = max_vel*np.cos(theta)
+            vel_y = max_vel*np.sin(theta)
+
+            return theta, theta_turn, vel_x, vel_y
+
+
     # def odom_callback(self,msg):
     #     self.wheel_odom = msg
     #     self.get_logger().info(f'wheel odom sub: {self.wheel_odom}')
@@ -193,7 +204,7 @@ class Robot(Node):
             self.get_logger().info(f'log diff x: {self.diff_x}')
             self.get_logger().info(f'log diff y: {self.diff_y}')
 
-
+            #self.theta, self.theta_turn, self.vel_x, self.vel_y = self.wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_vel)
             self.get_logger().info(f'log pose x: {self.pose.x}')
             self.get_logger().info(f'log pose y: {self.pose.y}')
 
@@ -257,12 +268,8 @@ class Robot(Node):
             odom__base_link.transform.translation.x = float(self.pose.x)
             odom__base_link.transform.translation.y = float(self.pose.y)
 
-            self.diff_x = self.goal.x - self.pose.x 
-            self.diff_y = self.goal.y - self.pose.y
-            self.theta = np.arctan2(self.diff_y, self.diff_x)
-            self.theta_turn = np.arctan2(self.diff_x, self.diff_y)
-            self.vel_x = self.max_vel*np.cos(self.theta)
-            self.vel_y = self.max_vel*np.sin(self.theta)
+            self.theta, self.theta_turn, self.vel_x, self.vel_y = self.wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_vel)
+
             self.base_stem_joint = self.theta_turn
             self.theta_stem = self.theta_turn
             
