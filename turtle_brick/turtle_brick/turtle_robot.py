@@ -195,17 +195,24 @@ class Robot(Node):
             self.diff_x = self.goal.x - self.pose.x 
             self.diff_y = self.goal.y - self.pose.y
 
-            self.get_logger().info(f'log diff x: {self.diff_x}')
-            self.get_logger().info(f'log diff y: {self.diff_y}')
+            # self.get_logger().info(f'log diff x: {self.diff_x}')
+            # self.get_logger().info(f'log diff y: {self.diff_y}')
 
-            #self.theta, self.theta_turn, self.vel_x, self.vel_y = self.wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_velocity)
-            self.get_logger().info(f'log pose x: {self.pose.x}')
-            self.get_logger().info(f'log pose y: {self.pose.y}')
+            self.theta, self.theta_turn, self.vel_x, self.vel_y = self.wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_velocity)
+            # self.get_logger().info(f'log tbeta1: {self.theta1}')
+            # self.get_logger().info(f'log thetaturn1: {self.theta_turn1}')
+            # self.get_logger().info(f'log vx1: {self.vel_x1}')
+            # self.get_logger().info(f'log vy1: {self.vel_y1}')
 
-            self.theta = np.arctan2(self.diff_y, self.diff_x)
-            self.theta_turn = np.arctan2(self.diff_x, self.diff_y)
-            self.vel_x = self.max_velocity*np.cos(self.theta)
-            self.vel_y = self.max_velocity*np.sin(self.theta)
+            # self.theta = np.arctan2(self.diff_y, self.diff_x)
+            # self.theta_turn = np.arctan2(self.diff_x, self.diff_y)
+            # self.vel_x = self.max_velocity*np.cos(self.theta)
+            # self.vel_y = self.max_velocity*np.sin(self.theta)
+
+            self.get_logger().info(f'tbeta: {self.theta}')
+            self.get_logger().info(f'thetaturn: {self.theta_turn}')
+            self.get_logger().info(f'vx: {self.vel_x}')
+            self.get_logger().info(f'vy: {self.vel_y}')
 
             if self.stem_wheel_joint < 30.0:
                 self.stem_wheel_joint += 0.05
@@ -217,7 +224,6 @@ class Robot(Node):
 
             self.get_logger().info(f'log vel x: {self.vel_x}')
             self.get_logger().info(f'log vel y: {self.vel_y}')
-
 
             self.F_tilt = 0
 
