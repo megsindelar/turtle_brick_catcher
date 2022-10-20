@@ -22,6 +22,9 @@ from turtle_brick_interfaces.msg import RobotMove, Tilt
 from enum import Enum, auto
 
 class State(Enum):
+    """ Different possible states of the program
+        Purpose: determines what functions get called in the main timer
+    """
     DROP = auto()
     START = auto()
     MOVE_BRICK = auto()
@@ -31,11 +34,32 @@ class State(Enum):
 
 
 class Arena(Node):
-    """ Move robot link/joint frames in space
-    
-        Static Broadcasters:
+    """ Simulate the environment and brick in space
 
-        Broadcasters:
+        Broadcasts:
+            odom to brick
+        Publishers:
+            brick_hit (std_msgs/msg/Bool): publishes if brick hit platform or ground 
+        Subscribers:
+            move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves
+            turtle1/pose (turtlesim/msg/Pose): position of turtle in turtlesim
+            tilt_plat (turtle_brick_interfaces/msg/Tilt): radians to tilt the platform
+            hit_targ (std_msgs/msg/Bool): publishes that the platform is tilting       
+        Services:
+            place (turtle_brick_interfaces/srv/Place): initial location of brick in space
+            drop (std_srvs/srv/Empty): tells the brick to drop
+        Markers:
+            visualization_marker_array (visualization_msgs/msg/MarkerArray):
+                array of 4 wall markers in the /world frame  
+            visualization_marker (visualization_msgs/msg/Marker) 
+                a brick marker in the /brick frame
+        Parameters:
+            acceleration (double): default is 9.8
+            platform_height (double): default is 1.55
+            wheel_radius (double): default is 0.3
+        Timers:
+            timer: main timer that runs at 250 Hz
+            timer_wall: timer for publishing wall array markers at 10 Hz
     """
     def __init__(self):
         super().__init__('arena')
@@ -49,9 +73,6 @@ class Arena(Node):
         self.platform_height = self.get_parameter('platform_height').get_parameter_value().double_value
         self.declare_parameter('wheel_radius', 0.3)
         self.wheel_rad = self.get_parameter('wheel_radius').get_parameter_value().double_value
-
-        #create a broadcaster that will publish to /tf_static
-        self.static_broadcaster = TransformBroadcaster(self)
 
         #create a broadcaster that will repeatedly publish to /tf
         self.broadcaster = TransformBroadcaster(self)
@@ -71,9 +92,6 @@ class Arena(Node):
         #create a publisher for if brick hit target (either platform or ground)
         self.pub_brick_hit = self.create_publisher(Bool, "brick_hit", 10)
 
-        #create a publisher for if brick landed on the ground after platform tilt
-        self.pub_brick_landed = self.create_publisher(Bool, "brick_landed", 10)
-
         #create a service for brick to fall
         self.place = self.create_service(Place,"place",self.brick_callback)
 
@@ -86,13 +104,7 @@ class Arena(Node):
         #create a subscriber for tilt_plat to tilt brick
         self.brick_tilt_sub = self.create_subscription(Tilt,'tilt_plat',self.brick_tilt_callback,10)
 
-        """
-        NOTEE FOR SELF
-        
-        need to re-adjust wall
-        """
-
-        #marker
+        #wall markers
         self.wall1 = Marker()
         self.wall1.header.frame_id = "/world"
         self.wall1.header.stamp = self.get_clock().now().to_msg()
@@ -166,7 +178,8 @@ class Arena(Node):
         self.wall_array.markers.append(self.wall2)
         self.wall_array.markers.append(self.wall3)
         self.wall_array.markers.append(self.wall4)
-
+        
+        #brick marker
         self.brick = Marker()
         self.brick.header.frame_id = "/brick"
         self.brick.header.stamp = self.get_clock().now().to_msg()
@@ -179,7 +192,6 @@ class Arena(Node):
         self.brick.color.g = 0.3
         self.brick.color.b = 0.3
         self.brick.color.a = 1.0
-  
 
         #create a timer callback to broadcast transforms at 250 Hz
         self.timer = self.create_timer(0.004, self.timer)
@@ -187,44 +199,43 @@ class Arena(Node):
         #create a timer callback to broadcast transforms at 10 Hz
         self.timer_wall = self.create_timer(0.1, self.timer_wall)
 
-        self.count1 = 0
+        #initialize variables
         self.dx = 4
         self.dy = 2
-
         self.g = 9.81
         self.freq = 250
-
         self.F_move = 0
         self.goal = 0
         self.brick_hit = Bool()
         self.brick_hit.data = False
-
         self.turtle_pose = Pose()
-
         self.turtle_pose_past_x = 0
         self.turtle_pose_past_y = 0
-
         self.base_height = 0.4
         self.stem_height = 0.2
-
         self.F_tilt = 0
-
         self.tilt_brick = 0
-
         self.done = 0
-
         self.brick_land = Bool()
         self.brick_land.data = False
-
         self.z_plat = self.platform_height - (self.base_height/2) - self.stem_height - self.wheel_rad
         self.z_plat_bottom = 0.226
-
         self.y_brick_fall = 5.5
         self.z_brick_fall = self.z_plat
-        # self.odom = "odom"
-        # self.base = "base_link"
 
     def brick_callback(self, request, response):
+        """ Callback function for /place service
+
+            Gets user-specified initial location of brick in space
+
+            Args:
+                request (PlaceRequest): x, y, and z locations of brick
+             
+                response (PlaceResponse): x, y, and z locations of brick
+
+            Returns: 
+                A PlaceResponse, containing x, y, and z locations of brick
+        """
         self.brick_init_x = request.x
         self.brick_init_y = request.y
         self.brick_init_z = request.z
@@ -238,36 +249,116 @@ class Arena(Node):
         return response
 
     def hit_targ_callback(self,msg):
+        """ Callback function for /hit_targ topic
+            type: std_msgs/msg/Bool
+
+            Reads if platform is tilting
+
+            Args:
+                msg: the data from the topic /hit_targ
+
+            Returns: 
+                no returns
+        """
         self.targ = msg
-        self.get_logger().info(f'targ: {self.targ.data}')
-        self.get_logger().info(f'done: {self.done}')
         if self.targ.data == True and self.done == 0:
             self.state = State.TARG
-            self.get_logger().info("hi buddy")
             self.done = 1
 
     def brick_tilt_callback(self,msg):
+        """ Callback function for /tilt_plat topic
+            type: turtle_brick_interfaces/msg/Tilt
+
+            How far to tilt the platform (in radians)
+
+            Args:
+                msg: the data from the topic /tilt_plat
+
+            Returns: 
+                no returns
+        """
         self.brick_tilt_rad = msg.tilt
-        self.get_logger().info(f'brick tilt: {self.brick_tilt_rad}')
 
     def turtle_pose_callback(self,msg):
+        """ Callback function for /turtle1/pose topic
+            type: turtlesim/msg/Pose
+
+            Gets the position of turtle in turtlesim
+
+            Args:
+                msg: the data from the topic /turtle1/pose
+
+            Returns: 
+                no returns
+        """
         self.turtle_pose = msg
 
     def robot_move_callback(self, msg):
+        """ Callback function for /move_robot topic
+            type: turtle_brick_interfaces/msg/RobotMove
+
+            To see if robot moves and platform height
+
+            Args:
+                msg: the data from the topic /move_robot
+
+            Returns: 
+                no returns
+        """
         self.robot_move_data = msg
         self.robot_move = self.robot_move_data.robotmove
         self.plat_z = self.robot_move_data.height
 
     def drop_callback(self, request, response):
+        """ Callback function for /drop service
+
+            Tells the brick to drop
+
+            Args:
+                request (EmptyRequest): no data
+             
+                response (EmptyResponse): no data
+
+            Returns: 
+                A PlaceResponse, containing x, y, and z locations of brick
+        """
         if self.state == State.MOVE_BRICK:
             self.state = State.DROP
         self.n = 1
         return response
 
     def timer_wall(self):
+        """ Timer callback at 10 Hz
+
+            Publishes:
+                visualization_marker_array (visualization_msgs/msg/MarkerArray):
+                    array of 4 wall markers in the /world frame  
+
+            Args:
+                no arguments
+
+            Returns: 
+                no returns
+        """
         self.pub_wall.publish(self.wall_array)
 
     def timer(self):
+        """ Timer callback at 100 Hz
+
+            Broadcasts:
+                odom to brick
+            Publishes:
+                brick_hit (std_msgs/msg/Bool): publishes if brick hit platform or ground 
+            Markers:
+                visualization_marker (visualization_msgs/msg/Marker) 
+                    a brick marker in the /brick frame
+
+            Args:
+                no arguments
+
+            Returns: 
+                no returns
+        """
         if self.state == State.START:
             self.odom__brick_link = TransformStamped()
             time = self.get_clock().now().to_msg()
@@ -306,18 +397,11 @@ class Arena(Node):
             self.brick.header.stamp = self.get_clock().now().to_msg()
             self.pub_brick.publish(self.brick)
 
-
-            self.get_logger().info(f'brick actually hit: {self.brick_hit}')
             self.abs_z = abs(self.dz - self.z_goal)
-            self.get_logger().info(f'abs: {self.abs_z}')
             if self.abs_z < 0.08:
                 self.brick_hit.data = True
-                self.get_logger().info(f'brick actually hit: {self.brick_hit}')
-                
 
         elif self.state == State.TARG:
-            self.get_logger().info("TARG STATE!")
-
             self.odom__brick_link.transform.translation.x = self.turtle_pose.x
             self.odom__brick_link.transform.translation.y = self.turtle_pose.y
 
@@ -326,9 +410,6 @@ class Arena(Node):
 
             diff_x = abs(x_center - self.odom__brick_link.transform.translation.x)
             diff_y = abs(y_center - self.odom__brick_link.transform.translation.y)
-
-            self.get_logger().info(f'diff x: {diff_x}')
-            self.get_logger().info(f'diff y: {diff_y}')
 
             if self.F_tilt == 1:
                 self.odom__brick_link.transform.rotation.x = 0.0
@@ -339,7 +420,6 @@ class Arena(Node):
 
             if (diff_x < 0.05 and diff_y < 0.05) or self.tilt_brick == 1:
                 #tilt brick and fall off platform
-                self.get_logger().info("TILT BRICK")
                 self.tilt_brick = 1
 
                 if self.F_tilt == 0:
@@ -359,16 +439,6 @@ class Arena(Node):
 
                     self.odom__brick_link.transform.translation.y = self.y_brick_fall
                     self.odom__brick_link.transform.translation.z = self.z_brick_fall
-                    
-
-            self.get_logger().info(f'f tilt: {self.F_tilt}')
-            self.get_logger().info(f'z brick fall: {self.z_brick_fall}')
-            self.get_logger().info(f'y brick fall: {self.y_brick_fall}')
-            self.get_logger().info(f'trans x: {self.odom__brick_link.transform.translation.x}')
-            self.get_logger().info(f'trans y: {self.odom__brick_link.transform.translation.y}')
-            self.get_logger().info(f'trans z: {self.odom__brick_link.transform.translation.z}')
-            self.get_logger().info(f'rot x: {self.odom__brick_link.transform.rotation.x}')
-
 
             time = self.get_clock().now().to_msg()
             self.odom__brick_link.header.stamp = time
@@ -378,7 +448,6 @@ class Arena(Node):
 
         elif self.state == State.DONE:
             self.brick_land.data = True
-            self.get_logger().info("DONE")
 
             self.odom__brick_link.transform.translation.x = self.brick_init_x
             self.odom__brick_link.transform.translation.y = self.brick_init_y
@@ -401,10 +470,6 @@ class Arena(Node):
             self.brick.lifetime.sec = 1
             self.pub_brick.publish(self.brick)
 
-
-        #odom__brick_link.transform.translation.z = float(self.dz)
-        #self.get_logger().info(f"State: {self.state}")
-        self.pub_brick_landed.publish(self.brick_land)
         self.pub_brick_hit.publish(self.brick_hit)
         
 def arena_entry(args=None):

@@ -25,7 +25,7 @@ class Catcher(Node):
             odom to brick
         Publishers:
             goal_pose (geometry_msgs/msg/Point): goal position for robot
-            move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves
+            move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves and plat height
             tilt_plat (turtle_brick_interfaces/msg/Tilt): radians to tilt the platform
             brick_ground (std_msgs/msg/Bool): brick is off the platform  
         Markers:
@@ -168,7 +168,7 @@ class Catcher(Node):
 
             Publishes:
               goal_pose (geometry_msgs/msg/Point): goal position for robot
-              move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves
+              move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves and plat height
               tilt_plat (turtle_brick_interfaces/msg/Tilt): radians to tilt the platform
               brick_ground (std_msgs/msg/Bool): brick is off the platform  
             Listeners:

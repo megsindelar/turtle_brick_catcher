@@ -51,7 +51,7 @@ class Robot(Node):
             odom (nav_msgs/msg/Odometry): publishes wheel odometry
         Subscribers:
             goal_pose (geometry_msgs/msg/Point): goal position for robot
-            move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves
+            move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves and plat height
             brick_hit (std_msgs/msg/Bool): checks if brick hit platform or ground  
             turtle1/pose (turtlesim/msg/Pose): position of turtle in turtlesim
             tilt_plat (turtle_brick_interfaces/msg/Tilt): radians to tilt the platform
@@ -144,7 +144,7 @@ class Robot(Node):
         self.odometry = Odometry()
 
     def brick_hit_callback(self,msg):
-        """ Callback function for /brick_hit service
+        """ Callback function for /brick_hit topic
             type: std_msgs/msg/Bool
 
             Reads if brick hit platform
@@ -160,7 +160,7 @@ class Robot(Node):
             self.brick_hit = 1
 
     def turtle_pose_callback(self,msg):
-        """ Callback function for /turtle1/pose service
+        """ Callback function for /turtle1/pose topic
             type: turtlesim/msg/Pose
 
             Gets turtle position data
@@ -174,7 +174,7 @@ class Robot(Node):
         self.pose = msg
 
     def goal_pose_callback(self,msg):
-        """ Callback function for /goal_pose service
+        """ Callback function for /goal_pose topic
             type: geometry_msgs/msg/Point
 
             Goal position for the robot
@@ -188,10 +188,10 @@ class Robot(Node):
         self.goal = msg
 
     def move_robot_callback(self,msg):
-        """ Callback function for /move_robot service
+        """ Callback function for /move_robot topic
             type: turtle_brick_interfaces/msg/RobotMove
 
-            To see if robot moves
+            To see if robot moves and platform height
 
             Args:
                 msg: the data from the topic /move_robot
@@ -205,7 +205,7 @@ class Robot(Node):
             self.move_robot_now = 1
 
     def brick_ground_callback(self,msg):
-        """ Callback function for /brick_ground service
+        """ Callback function for /brick_ground topic
             type: std_msgs/msg/Bool
 
             Reads if brick is off the platform
@@ -219,7 +219,7 @@ class Robot(Node):
         self.brick_ground = msg.data
 
     def tilt_plat_callback(self,msg):
-        """ Callback function for /tilt_plat service
+        """ Callback function for /tilt_plat topic
             type: turtle_brick_interfaces/msg/Tilt
 
             How much to tilt the platform (radians)
