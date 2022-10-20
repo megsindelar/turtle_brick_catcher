@@ -1,10 +1,3 @@
-from this import d
-from tokenize import Double
-from types import NoneType
-from unicodedata import name
-from matplotlib.pyplot import angle_spectrum
-from sklearn.metrics import euclidean_distances
-from sympy import line_integrate
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
@@ -207,7 +200,7 @@ class Robot(Node):
             # self.get_logger().info(f'log diff x: {self.diff_x}')
             # self.get_logger().info(f'log diff y: {self.diff_y}')
 
-            self.theta, self.theta_turn, self.vel_x, self.vel_y = self.wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_velocity)
+            self.theta, self.theta_turn, self.vel_x, self.vel_y = wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_velocity)
             # self.get_logger().info(f'log tbeta1: {self.theta1}')
             # self.get_logger().info(f'log thetaturn1: {self.theta_turn1}')
             # self.get_logger().info(f'log vx1: {self.vel_x1}')
@@ -288,7 +281,7 @@ class Robot(Node):
             odom__base_link.transform.translation.x = float(self.pose.x)
             odom__base_link.transform.translation.y = float(self.pose.y)
 
-            self.theta, self.theta_turn, self.vel_x, self.vel_y = self.wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_velocity)
+            self.theta, self.theta_turn, self.vel_x, self.vel_y = wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_velocity)
 
             self.base_stem_joint = self.theta_turn
             self.theta_stem = self.theta_turn
