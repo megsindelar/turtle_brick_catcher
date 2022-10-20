@@ -1,6 +1,5 @@
 import rclpy
 from rclpy.node import Node
-from rclpy.time import Time
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped, Twist, Vector3, Point
@@ -13,7 +12,21 @@ from nav_msgs.msg import Odometry
 import numpy as np
 
 def wheel_vel_turn(goal_x, goal_y, pose_x, pose_y, max_vel):
-    """Function to compute the turn of the wheel and velocity of robot"""
+    """ Function to compute the turn of the wheel and velocity of robot
+    
+        Args:
+          goal_x: position in x-axis (float)
+          goal_y: position in y-axis (float)
+          pose_x: position in x-axis (float)
+          pose_y: position in y-axis (float)
+          max_vel: velocity (float)
+
+        Returns:
+          theta: rotation angle in radians
+          theta_turn: rotation angle in radians
+          vel_x: velocity in x-direction
+          vel_y: velocity in y-direction
+    """
     diff_x = goal_x - pose_x 
     diff_y = goal_y - pose_y
     theta = np.arctan2(diff_y, diff_x)
@@ -44,8 +57,8 @@ class Robot(Node):
             tilt_plat (turtle_brick_interfaces/msg/Tilt): radians to tilt the platform
             brick_ground (std_msgs/msg/Bool): brick is off the platform          
         Parameters:
-            max_velocity (double): maximum velocity of the robot
-            wheel_radius (double): radius of the wheel
+            max_velocity (double): default is 1.0
+            wheel_radius (double): default is 0.3
         Timers:
             timer: runs at 100 Hz
     """

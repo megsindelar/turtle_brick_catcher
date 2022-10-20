@@ -1,42 +1,46 @@
-from email.mime import base
-from re import M
-from numpy import float64
-from pyrsistent import b
-from sklearn.metrics import euclidean_distances
-from traitlets import Float
 import rclpy
 from rclpy.node import Node
-from rclpy.time import Time
-from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
-from tf2_ros import TransformBroadcaster, TransformException
+from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
-import math
 from math import sqrt
 from geometry_msgs.msg import Point
 from enum import Enum, auto
-from std_srvs.srv import Empty
 from std_msgs.msg import Bool
 from visualization_msgs.msg import Marker
 from turtle_brick_interfaces.msg import RobotMove, Tilt
 
 class State(Enum):
+    """ Different possible states of the program
+        Purpose: determines what functions get called in the main timer
+    """
     DETECTED = auto()
     UNDETECTED = auto()
 
 class Catcher(Node):
-    """ Move robot link/joint frames in space
+    """ Coordinates robot to catch falling brick
     
-        Static Broadcasters:
-
-        Broadcasters:
+        Listeners:
+            odom to base_link
+            odom to brick
+        Publishers:
+            goal_pose (geometry_msgs/msg/Point): goal position for robot
+            move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves
+            tilt_plat (turtle_brick_interfaces/msg/Tilt): radians to tilt the platform
+            brick_ground (std_msgs/msg/Bool): brick is off the platform  
+        Markers:
+            visualization_marker (visualization_msgs/msg/Marker): text marker in /world frame
+        Parameters:
+            platform_height (double): default is 1.55
+            wheel_radius (double): default is 0.3
+            acceleration (double): default is 9.8
+        Timers:
+            timer: runs at 100 Hz
     """
     def __init__(self):
         super().__init__('catcher')     
 
         self.state = State.UNDETECTED 
-
-        self.get_logger().info("HI!")
 
         #load parameters from yaml
         self.declare_parameter('platform_height', 1.55)
@@ -64,14 +68,12 @@ class Catcher(Node):
 
         #create a publisher for when brick is on ground
         self.brick_tilt_pub = self.create_publisher(Bool, 'brick_ground', 10)
-
-        #Declare a frequency parameter for timer callback
-        #self.declare_parameter("frequency", 100.0)
-        #self.frequency = self.get_parameter("frequency").get_parameter_value().double_value
-        self.frequency = 100
+        
         # #create a timer callback to broadcast transforms at 100 Hz
+        self.frequency = 100
         self.timer = self.create_timer((1/self.frequency), self.timer)
 
+        #text marker
         self.text = Marker()
         self.text.header.frame_id = "/world"
         self.text.id = 5
@@ -91,54 +93,48 @@ class Catcher(Node):
         self.text.pose.position.y = 0.0
         self.text.pose.position.z = 0.0
 
-
+        #initialize variables
         self.max_vel = 1.0
-
         self.odom = "odom"
         self.brick = "brick"
         self.base = "base_link"
-
         self.x_brick_prev = 0
         self.y_brick_prev = 0
         self.z_brick_prev = 0
         self.F = 0
-
         self.marker = 0
-
-        self.life = 3
-
-        self.counts = self.frequency*self.life
-
-        self.counter = 0
-
         self.robot = RobotMove()
-
         self.robot.robotmove = False
-
         self.move = Point()
-
-        self.count = 0
-
         self.base_height = 0.4
         self.stem_height = 0.2
-
         self.tilt_platform = Tilt()
         self.tilt_platform.tilt = 0.6
-
         self.brick_landed = Bool()
         self.brick_landed.data = False
-
         self.z_plat_bottom = 0.226
         self.z_plat = self.platform_height - (self.base_height/2) - self.stem_height - self.wheel_rad
-
         self.F = 0
 
     def brick_to_base(self,x_brick,y_brick,z_brick,x_plat,y_plat,z_plat):
+        """ Function to determine if robot can catch the brick
+    
+            Args:
+              x_brick: position in x-axis (float)
+              y_brick: position in y-axis (float)
+              z_brick: position in z-axis (float)
+              x_plat: position in x-axis (float)
+              y_plat: position in y-axis (float)
+              z_plat: position in z-axis (float)
+
+            Returns:
+              no returns
+        """
         z_diff = z_brick - z_plat
 
         if z_diff > 0:
             euclid_dist = sqrt((x_brick - x_plat)**2 + (y_brick - y_plat)**2)
-            t_b = sqrt(((2*(z_brick - z_plat))/self.acceleration))      #brick falling
+            t_b = sqrt(((2*(z_brick - z_plat))/self.acceleration))
             t_r = euclid_dist/self.max_vel
         
             if t_r <= t_b:
@@ -151,56 +147,57 @@ class Catcher(Node):
                 self.robot.robotmove = True
                 self.robot.height = z_plat
                 self.robot_move_pub.publish(self.robot)
-                self.get_logger().info(f"MOVE TO GOAL: {self.move}")
-                self.get_logger().info(f"Rob: {self.robot}")
                 self.marker = 0
 
                 self.pub_tilt.publish(self.tilt_platform)
-                # if self.count < 20:
-                #     self.count += 1
-                # else:
-                #     self.robot.robotmove = False
-                #     self.count = 0
                 self.state = State.DETECTED
 
             else:
                 #robot can't catch the brick     
-                self.get_logger().info(f"Can't move to goal")
                 self.z_brick_prev = -10.0
-                #self.state = State.TRIED    
                 self.marker = 1
                 self.state = State.UNDETECTED
 
         else: 
-            self.get_logger().info("Brick starts below robot platform, can't move to goal!")
             self.z_brick_prev = -10.0
-            #self.state = State.TRIED
             self.marker = 1
             
 
     def timer(self):
+        """ Timer callback at 100 Hz
+
+            Publishes:
+              goal_pose (geometry_msgs/msg/Point): goal position for robot
+              move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves
+              tilt_plat (turtle_brick_interfaces/msg/Tilt): radians to tilt the platform
+              brick_ground (std_msgs/msg/Bool): brick is off the platform  
+            Listeners:
+              odom to base_link
+              odom to brick
+            Markers:
+              visualization_marker (visualization_msgs/msg/Marker): text marker in /world frame
+
+            Args:
+                no arguments
+
+            Returns: 
+                no returns
+        """
         if self.state == State.UNDETECTED:
             try:
                 base_t = self.tf_buffer.lookup_transform(
                 self.odom,
                 self.base,
         rclpy.time.Time())
-                #self.get_logger().info(f'transform: {base_t}')
-                #base_t = brick_t.transform.translation.x
-                #self.get_logger().info(f'base_t: {base_t}')
             except TransformException as ex:
-                        #self.get_logger().info(
-                        #    f'Could not transform {self.odom} to {self.base}: {ex}')
                         return
 
             x_base = base_t.transform.translation.x
             y_base = base_t.transform.translation.y
             z_base = base_t.transform.translation.z
 
-            #transform base to platform
             x_plat = x_base
             y_plat = y_base
-            #z_plat = z_base + 0.85
             self.robot.height = self.z_plat
 
             try:
@@ -208,10 +205,7 @@ class Catcher(Node):
                 self.odom,
                 self.brick,
         rclpy.time.Time())
-                #self.get_logger().info(f'transform: {brick_t}')
             except TransformException as ex:
-                        #self.get_logger().info(
-                        #    f'Could not transform {self.odom} to {self.brick}: {ex}')
                         return
 
             x_brick = brick_t.transform.translation.x
@@ -220,18 +214,11 @@ class Catcher(Node):
 
             z_difference = abs(z_brick - self.z_brick_prev)
 
-            #if self.F == 1:
-            self.get_logger().info(f"z_brick: {z_brick}")
-            self.get_logger().info(f"z_brick_prev: {self.z_brick_prev}")
-            self.get_logger().info(f"z_difference: {z_difference}")
             if z_brick != self.z_brick_prev and z_difference < 0.002 and self.F == 0:
                 self.brick_to_base(x_brick,y_brick,z_brick,x_plat,y_plat,self.z_plat)
-            #    else:
-            #        self.get_logger().info('NOT READY!')
 
             else:
                 self.F = 0
-                #self.get_logger().info('HELLOOOOOOOOOOOOOOOO!')
 
             self.z_brick_prev = z_brick
 
@@ -242,8 +229,6 @@ class Catcher(Node):
 
 
         elif self.state == State.DETECTED:
-            #self.get_logger().info('Detected!')
-            meg = self.max_vel
             self.robot.robotmove = False
 
             try:
@@ -251,10 +236,7 @@ class Catcher(Node):
                 self.odom,
                 self.brick,
         rclpy.time.Time())
-                #self.get_logger().info(f'transform: {brick_t}')
             except TransformException as ex:
-                        #self.get_logger().info(
-                        #    f'Could not transform {self.odom} to {self.brick}: {ex}')
                         return
 
             x_brick = brick_t.transform.translation.x
@@ -266,32 +248,15 @@ class Catcher(Node):
 
             x_diff = abs(x_brick - x_center)
             y_diff = abs(y_brick - y_center - 0.45)
-            self.get_logger().info(f'x_diff: {x_diff}')
-            self.get_logger().info(f'y_diff: {y_diff}')
-            self.get_logger().info(f'z_brick: {z_brick}')
   
             if z_brick == (self.z_plat - self.z_plat_bottom) and x_diff < 0.08 and y_diff < 0.91:
                 self.brick_landed.data = True
                 self.z_brick_prev = 0
                 self.F = 1
                 self.state = State.UNDETECTED
-                
-
-        # x_t_brick = brick_t.transform.translation.x
-        # y_t_brick = brick_t.transform.translation.y
-        # z_t_brick = brick_t.transform.translation.z
-
-        # base_t = self.tf_buffer2.lookup_transform("base_link","odom",Time)
-        # x_t_base = base_t.transform.translation.x
-        # y_t_base = base_t.transform.translation.y
-        # z_t_base = base_t.transform.translation.z + 0.85       #adding the height to the top of the platform
-
-        #self.brick_to_base(x_t_brick,y_t_brick,z_t_brick,x_t_base,y_t_base,z_t_base)
-
 
         self.robot_move_pub.publish(self.robot)
         self.brick_tilt_pub.publish(self.brick_landed)
-        self.get_logger().info(f'state: {self.state}')
 
 def catcher_entry(args=None):
     rclpy.init(args=args)
