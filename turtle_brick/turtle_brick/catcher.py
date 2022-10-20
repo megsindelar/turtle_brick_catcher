@@ -12,7 +12,8 @@ from turtle_brick_interfaces.msg import RobotMove, Tilt
 
 
 class State(Enum):
-    """ Different possible states of the program.
+    """Different possible states of the program.
+
     Purpose: determines what functions get called in the main timer
     """
 
@@ -21,7 +22,7 @@ class State(Enum):
 
 
 class Catcher(Node):
-    """ Coordinates robot to catch falling brick.
+    """Coordinates robot to catch falling brick.
 
     Listeners:
         odom to base_link
@@ -49,7 +50,7 @@ class Catcher(Node):
         # load parameters from yaml
         self.declare_parameter('platform_height', 1.55)
         self.platform_height = self.get_parameter('platform_height'
-                                                 ).get_parameter_value().double_value
+                                                  ).get_parameter_value().double_value
         self.declare_parameter('wheel_radius', 0.3)
         self.wheel_rad = self.get_parameter('wheel_radius').get_parameter_value().double_value
         self.declare_parameter('acceleration', 9.8)
@@ -119,11 +120,11 @@ class Catcher(Node):
         self.brick_landed.data = False
         self.z_plat_bottom = 0.226
         self.z_plat = self.platform_height - (self.base_height/2
-            ) - self.stem_height - self.wheel_rad
+                                              ) - self.stem_height - self.wheel_rad
         self.F = 0
 
     def brick_to_base(self, x_brick, y_brick, z_brick, x_plat, y_plat, z_plat):
-        """ Determine if robot can catch the brick.
+        """Determine if robot can catch the brick.
 
         Args:
             x_brick: position in x-axis (float)
@@ -134,9 +135,10 @@ class Catcher(Node):
             z_plat: position in z-axis (float)
 
         Returns
+        -------
             no returns
-        """
 
+        """
         z_diff = z_brick - z_plat
 
         if z_diff > 0:
@@ -170,7 +172,7 @@ class Catcher(Node):
             self.marker = 1
 
     def timer(self):
-        """ Timer callback at 100 Hz.
+        """Timer callback at 100 Hz.
 
         Publishes:
             goal_pose (geometry_msgs/msg/Point): goal position for robot
@@ -188,9 +190,10 @@ class Catcher(Node):
             no arguments
 
         Returns
+        -------
             no returns
-        """
 
+        """
         if self.state == State.UNDETECTED:
             try:
                 base_t = self.tf_buffer.lookup_transform(self.odom, self.base, rclpy.time.Time())
@@ -255,6 +258,7 @@ class Catcher(Node):
 
         self.robot_move_pub.publish(self.robot)
         self.brick_tilt_pub.publish(self.brick_landed)
+
 
 def catcher_entry(args=None):
     rclpy.init(args=args)
