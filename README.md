@@ -9,6 +9,11 @@ Author: Megan Sindelar
         3. none, joints states are not controlled by a node
 2. The `/place` service commands the brick to an initial location
 3. The `/drop` service commands the brick to drop
+4. Here is a video of two scenarios:
+        1. Robot can get to the falling brick in time and catch it
+        2. Robot can't get to the falling brick in time
+
+[SindelarMegan_HW2_Demo.webm](https://user-images.githubusercontent.com/87098227/196987187-9f066a63-288e-4444-bbb0-687f02435c3c.webm)
 
 I worked with: Liz Metzger, Marno Nel, Nick Morales, Ritika Ghosh, and Katie Hughes
 
