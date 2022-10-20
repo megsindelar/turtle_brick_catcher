@@ -214,6 +214,7 @@ class Arena(Node):
 
     def brick_callback(self, request, response):
         """ Callback function for /place service
+            type: turtle_brick_interfaces/srv/Place
 
             Gets user-specified initial location of brick in space
 
@@ -300,6 +301,7 @@ class Arena(Node):
 
     def drop_callback(self, request, response):
         """ Callback function for /drop service
+            type: std_srvs/srv/Empty
 
             Tells the brick to drop
 
