@@ -10,70 +10,75 @@ from std_msgs.msg import Bool
 from visualization_msgs.msg import Marker
 from turtle_brick_interfaces.msg import RobotMove, Tilt
 
+
 class State(Enum):
-    """ Different possible states of the program
-        Purpose: determines what functions get called in the main timer
+    """ Different possible states of the program.
+    Purpose: determines what functions get called in the main timer
     """
+
     DETECTED = auto()
     UNDETECTED = auto()
 
+
 class Catcher(Node):
-    """ Coordinates robot to catch falling brick
-    
-        Listeners:
-            odom to base_link
-            odom to brick
-        Publishers:
-            goal_pose (geometry_msgs/msg/Point): goal position for robot
-            move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves and plat height
-            tilt_plat (turtle_brick_interfaces/msg/Tilt): radians to tilt the platform
-            brick_ground (std_msgs/msg/Bool): brick is off the platform  
-        Markers:
-            visualization_marker (visualization_msgs/msg/Marker): text marker in /world frame
-        Parameters:
-            platform_height (double): default is 1.55
-            wheel_radius (double): default is 0.3
-            acceleration (double): default is 9.8
-        Timers:
-            timer: runs at 100 Hz
+    """ Coordinates robot to catch falling brick.
+
+    Listeners:
+        odom to base_link
+        odom to brick
+    Publishers:
+        goal_pose (geometry_msgs/msg/Point): goal position for robot
+        move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves and plat height
+        tilt_plat (turtle_brick_interfaces/msg/Tilt): radians to tilt the platform
+        brick_ground (std_msgs/msg/Bool): brick is off the platform
+    Markers:
+        visualization_marker (visualization_msgs/msg/Marker): text marker in /world frame
+    Parameters:
+        platform_height (double): default is 1.55
+        wheel_radius (double): default is 0.3
+        acceleration (double): default is 9.8
+    Timers:
+        timer: runs at 100 Hz
     """
+
     def __init__(self):
-        super().__init__('catcher')     
+        super().__init__('catcher')
 
-        self.state = State.UNDETECTED 
+        self.state = State.UNDETECTED
 
-        #load parameters from yaml
+        # load parameters from yaml
         self.declare_parameter('platform_height', 1.55)
-        self.platform_height = self.get_parameter('platform_height').get_parameter_value().double_value
+        self.platform_height = self.get_parameter('platform_height'
+                                                 ).get_parameter_value().double_value
         self.declare_parameter('wheel_radius', 0.3)
         self.wheel_rad = self.get_parameter('wheel_radius').get_parameter_value().double_value
         self.declare_parameter('acceleration', 9.8)
         self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
 
-        #create a listener for brick position  
-        self.tf_buffer = Buffer()  
+        # create a listener for brick position
+        self.tf_buffer = Buffer()
         self.tf_brick_listener = TransformListener(self.tf_buffer, self)
 
-        #create a publisher to send velocity commands to turtlesim
-        self.goal_pose_pub = self.create_publisher(Point,"goal_pose",10)
+        # create a publisher to send velocity commands to turtlesim
+        self.goal_pose_pub = self.create_publisher(Point, "goal_pose", 10)
 
-        #create a publisher to say whether the robot will move
+        # create a publisher to say whether the robot will move
         self.robot_move_pub = self.create_publisher(RobotMove, "move_robot", 10)
 
-        #create marker publisher for brick
-        self.pub_text = self.create_publisher(Marker,"visualization_marker",10)
+        # create marker publisher for brick
+        self.pub_text = self.create_publisher(Marker, "visualization_marker", 10)
 
-        #create a publisher for tilt
+        # create a publisher for tilt
         self.pub_tilt = self.create_publisher(Tilt, "tilt_plat", 10)
 
-        #create a publisher for when brick is on ground
+        # create a publisher for when brick is on ground
         self.brick_tilt_pub = self.create_publisher(Bool, 'brick_ground', 10)
-        
-        # #create a timer callback to broadcast transforms at 100 Hz
+
+        # create a timer callback to broadcast transforms at 100 Hz
         self.frequency = 100
         self.timer = self.create_timer((1/self.frequency), self.timer)
 
-        #text marker
+        # text marker
         self.text = Marker()
         self.text.header.frame_id = "/world"
         self.text.id = 5
@@ -93,7 +98,7 @@ class Catcher(Node):
         self.text.pose.position.y = 0.0
         self.text.pose.position.z = 0.0
 
-        #initialize variables
+        # initialize variables
         self.max_vel = 1.0
         self.odom = "odom"
         self.brick = "brick"
@@ -113,32 +118,34 @@ class Catcher(Node):
         self.brick_landed = Bool()
         self.brick_landed.data = False
         self.z_plat_bottom = 0.226
-        self.z_plat = self.platform_height - (self.base_height/2) - self.stem_height - self.wheel_rad
+        self.z_plat = self.platform_height - (self.base_height/2
+            ) - self.stem_height - self.wheel_rad
         self.F = 0
 
-    def brick_to_base(self,x_brick,y_brick,z_brick,x_plat,y_plat,z_plat):
-        """ Function to determine if robot can catch the brick
-    
-            Args:
-              x_brick: position in x-axis (float)
-              y_brick: position in y-axis (float)
-              z_brick: position in z-axis (float)
-              x_plat: position in x-axis (float)
-              y_plat: position in y-axis (float)
-              z_plat: position in z-axis (float)
+    def brick_to_base(self, x_brick, y_brick, z_brick, x_plat, y_plat, z_plat):
+        """ Determine if robot can catch the brick.
 
-            Returns:
-              no returns
+        Args:
+            x_brick: position in x-axis (float)
+            y_brick: position in y-axis (float)
+            z_brick: position in z-axis (float)
+            x_plat: position in x-axis (float)
+            y_plat: position in y-axis (float)
+            z_plat: position in z-axis (float)
+
+        Returns
+            no returns
         """
+
         z_diff = z_brick - z_plat
 
         if z_diff > 0:
             euclid_dist = sqrt((x_brick - x_plat)**2 + (y_brick - y_plat)**2)
             t_b = sqrt(((2*(z_brick - z_plat))/self.acceleration))
             t_r = euclid_dist/self.max_vel
-        
+
             if t_r <= t_b:
-                #robot can catch the brick
+                # robot can catch the brick
                 self.move.x = x_brick
                 self.move.y = y_brick
                 self.move.z = z_brick
@@ -153,60 +160,55 @@ class Catcher(Node):
                 self.state = State.DETECTED
 
             else:
-                #robot can't catch the brick     
+                # robot can't catch the brick
                 self.z_brick_prev = -10.0
                 self.marker = 1
                 self.state = State.UNDETECTED
 
-        else: 
+        else:
             self.z_brick_prev = -10.0
             self.marker = 1
-            
 
     def timer(self):
-        """ Timer callback at 100 Hz
+        """ Timer callback at 100 Hz.
 
-            Publishes:
-              goal_pose (geometry_msgs/msg/Point): goal position for robot
-              move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves and plat height
-              tilt_plat (turtle_brick_interfaces/msg/Tilt): radians to tilt the platform
-              brick_ground (std_msgs/msg/Bool): brick is off the platform  
-            Listeners:
-              odom to base_link
-              odom to brick
-            Markers:
-              visualization_marker (visualization_msgs/msg/Marker): text marker in /world frame
+        Publishes:
+            goal_pose (geometry_msgs/msg/Point): goal position for robot
+            move_robot (turtle_brick_interfaces/msg/RobotMove):
+            see if robot moves and plat height
+            tilt_plat (turtle_brick_interfaces/msg/Tilt): radians to tilt the platform
+            brick_ground (std_msgs/msg/Bool): brick is off the platform
+        Listeners:
+            odom to base_link
+            odom to brick
+        Markers:
+            visualization_marker (visualization_msgs/msg/Marker): text marker in /world frame
 
-            Args:
-                no arguments
+        Args:
+            no arguments
 
-            Returns: 
-                no returns
+        Returns
+            no returns
         """
+
         if self.state == State.UNDETECTED:
             try:
-                base_t = self.tf_buffer.lookup_transform(
-                self.odom,
-                self.base,
-        rclpy.time.Time())
-            except TransformException as ex:
-                        return
+                base_t = self.tf_buffer.lookup_transform(self.odom, self.base, rclpy.time.Time())
+            except TransformException:
+                return
 
             x_base = base_t.transform.translation.x
             y_base = base_t.transform.translation.y
-            z_base = base_t.transform.translation.z
+            # z_base = base_t.transform.translation.z
 
             x_plat = x_base
             y_plat = y_base
             self.robot.height = self.z_plat
 
             try:
-                brick_t = self.tf_buffer.lookup_transform(
-                self.odom,
-                self.brick,
-        rclpy.time.Time())
-            except TransformException as ex:
-                        return
+                brick_t = self.tf_buffer.lookup_transform(self.odom, self.brick, rclpy.time.Time())
+            except TransformException:
+                return
 
             x_brick = brick_t.transform.translation.x
             y_brick = brick_t.transform.translation.y
@@ -215,7 +217,7 @@ class Catcher(Node):
             z_difference = abs(z_brick - self.z_brick_prev)
 
             if z_brick != self.z_brick_prev and z_difference < 0.002 and self.F == 0:
-                self.brick_to_base(x_brick,y_brick,z_brick,x_plat,y_plat,self.z_plat)
+                self.brick_to_base(x_brick, y_brick, z_brick, x_plat, y_plat, self.z_plat)
 
             else:
                 self.F = 0
@@ -225,19 +227,15 @@ class Catcher(Node):
             if self.marker == 1:
                 self.text.header.stamp = self.get_clock().now().to_msg()
                 self.pub_text.publish(self.text)
-            self.marker=0
-
+            self.marker = 0
 
         elif self.state == State.DETECTED:
             self.robot.robotmove = False
 
             try:
-                brick_t = self.tf_buffer.lookup_transform(
-                self.odom,
-                self.brick,
-        rclpy.time.Time())
-            except TransformException as ex:
-                        return
+                brick_t = self.tf_buffer.lookup_transform(self.odom, self.brick, rclpy.time.Time())
+            except TransformException:
+                return
 
             x_brick = brick_t.transform.translation.x
             y_brick = brick_t.transform.translation.y
@@ -248,7 +246,7 @@ class Catcher(Node):
 
             x_diff = abs(x_brick - x_center)
             y_diff = abs(y_brick - y_center - 0.45)
-  
+
             if z_brick == (self.z_plat - self.z_plat_bottom) and x_diff < 0.08 and y_diff < 0.91:
                 self.brick_landed.data = True
                 self.z_brick_prev = 0
