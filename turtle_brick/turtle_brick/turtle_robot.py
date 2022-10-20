@@ -13,7 +13,8 @@ import numpy as np
 
 
 def wheel_vel_turn(goal_x, goal_y, pose_x, pose_y, max_vel):
-    """Compute the turn of the wheel and velocity of robot.
+    """
+    Compute the turn of the wheel and velocity of robot.
 
     Args:
         goal_x: position in x-axis (float)
@@ -41,10 +42,10 @@ def wheel_vel_turn(goal_x, goal_y, pose_x, pose_y, max_vel):
 
 
 class Robot(Node):
-    """Move robot link/joint frames in space.
+    """
+    Move robot link/joint frames in space.
 
-    Static Broadcasts:
-        world to odom
+    Static Broadcasts: world to odom
     Broadcasts:
         odom to base_link
     Publishers:
@@ -85,30 +86,30 @@ class Robot(Node):
 
         # create a subscriber to goal_pose
         self.goal_pose_sub = self.create_subscription(Point, "goal_pose",
-                            self.goal_pose_callback, 10)
+                                                      self.goal_pose_callback, 10)
 
         # create a subscriber to see if robot moves
-        self.move_robot_sub = self.create_subscription(RobotMove,
-              "move_robot", self.move_robot_callback, 10)
+        self.move_robot_sub = self.create_subscription(RobotMove, "move_robot",
+                                                       self.move_robot_callback, 10)
 
         # create a publisher for platform tilting (brick should fall)
         self.hit_targ_pub = self.create_publisher(Bool, "hit_targ", 10)
 
         # create a subscriber for if brick hit target (either platform or ground)
         self.brick_hit_sub = self.create_subscription(Bool, "brick_hit",
-                            self.brick_hit_callback, 10)
+                                                      self.brick_hit_callback, 10)
 
         # create a subscriber to turtle_pose
         self.turtle_pose = self.create_subscription(Pose, "turtle1/pose",
-                        self.turtle_pose_callback, 10)
+                                                    self.turtle_pose_callback, 10)
 
         # create a subsciber to tilt_plat to tilt the platform
         self.tilt_plat_sub = self.create_subscription(Tilt, 'tilt_plat',
-                            self.tilt_plat_callback, 10)
+                                                      self.tilt_plat_callback, 10)
 
         # create a subsriber to see if brick is off the platform
         self.brick_ground_sub = self.create_subscription(Bool, 'brick_ground',
-                            self.brick_ground_callback, 10)
+                                                         self.brick_ground_callback, 10)
 
         # create a publisher for wheel odometry
         self.wheel_odometry_pub = self.create_publisher(Odometry, "odom", 10)
@@ -152,7 +153,8 @@ class Robot(Node):
         self.odometry = Odometry()
 
     def brick_hit_callback(self, msg):
-        """Get if brick hit platform.
+        """
+        Get if brick hit platform.
 
         A callback function for /brick_hit (std_msgs/msg/Bool) topic
 
@@ -169,7 +171,8 @@ class Robot(Node):
             self.brick_hit = 1
 
     def turtle_pose_callback(self, msg):
-        """Turtle position data.
+        """
+        Turtle position data.
 
         A callback function for /turtle1/pose (turtlesim/msg/Pose) topic
 
@@ -184,7 +187,8 @@ class Robot(Node):
         self.pose = msg
 
     def goal_pose_callback(self, msg):
-        """Goal position for the robot.
+        """
+        Goal position for the robot.
 
         A callback function for /goal_pose (geometry_msgs/msg/Point) topic
 
@@ -199,7 +203,8 @@ class Robot(Node):
         self.goal = msg
 
     def move_robot_callback(self, msg):
-        """To see if robot moves and platform height.
+        """
+        To see if robot moves and platform height.
 
         A callback function for /move_robot (turtle_brick_interfaces/msg/RobotMove) topic
 
@@ -217,7 +222,8 @@ class Robot(Node):
             self.move_robot_now = 1
 
     def brick_ground_callback(self, msg):
-        """Get if brick is off the platform.
+        """
+        Get if brick is off the platform.
 
         A callback function for /brick_ground (std_msgs/msg/Bool) topic
 
@@ -232,8 +238,9 @@ class Robot(Node):
         self.brick_ground = msg.data
 
     def tilt_plat_callback(self, msg):
-        """ How much to tilt the platform in radians.
-        
+        """
+        How much to tilt the platform in radians.
+
         A callback function for /tilt_plat (turtle_brick_interfaces/msg/Tilt) topic
 
         Args:
@@ -247,7 +254,8 @@ class Robot(Node):
         self.plat_tilt_rad = msg.tilt
 
     def timer(self):
-        """Timer callback at 100 Hz.
+        """
+        Timer callback at 100 Hz.
 
         Publishes:
             joint_states (sensor_msgs/msg/JointState): joint commands to the robot
@@ -278,7 +286,10 @@ class Robot(Node):
             self.diff_x = self.goal.x - self.pose.x
             self.diff_y = self.goal.y - self.pose.y
             self.theta, self.theta_turn, self.vel_x, self.vel_y = wheel_vel_turn(self.goal.x,
-                         self.goal.y, self.pose.x, self.pose.y, self.max_velocity)
+                                                                                 self.goal.y,
+                                                                                 self.pose.x,
+                                                                                 self.pose.y,
+                                                                                 self.max_velocity)
 
             if self.F_dist == 0:
                 self.euclid_dist = np.sqrt(self.diff_x**2 + self.diff_y**2)
@@ -297,24 +308,24 @@ class Robot(Node):
             self.F_tilt = 0
 
             if abs(self.diff_x) > 0.05:
-                self.move_x =float(self.vel_x)
+                self.move_x = float(self.vel_x)
             else:
                 self.move_x = 0.0
 
             if abs(self.diff_y) > 0.05:
-                self.move_y =float(self.vel_y)
+                self.move_y = float(self.vel_y)
             else:
                 self.move_y = 0.0
 
             self.lin_x = self.move_x
             self.lin_y = self.move_y
             self.move = Twist(linear=Vector3(x=self.max_velocity*np.cos(self.theta),
-                    y=self.max_velocity*np.sin(self.theta), z=0.0),
-                    angular=Vector3(x=0.0, y=0.0, z=0.0))
+                              y=self.max_velocity*np.sin(self.theta), z=0.0),
+                              angular=Vector3(x=0.0, y=0.0, z=0.0))
             self.cmd_vel_pub.publish(self.move)
 
-            odom__base_link.transform.translation.x =float(self.pose.x)
-            odom__base_link.transform.translation.y =float(self.pose.y)
+            odom__base_link.transform.translation.x = float(self.pose.x)
+            odom__base_link.transform.translation.y = float(self.pose.y)
 
             self.abs_diff_x = abs(self.goal.x - self.pose.x)
             self.abs_diff_y = abs(self.goal.y - self.pose.y)
@@ -327,8 +338,8 @@ class Robot(Node):
         elif self.move_robot_now == 0 and self.wait == 1:
             self.move.linear.x = 0.0
             self.move.linear.y = 0.0
-            odom__base_link.transform.translation.x =float(self.pose.x)
-            odom__base_link.transform.translation.y =float(self.pose.y)
+            odom__base_link.transform.translation.x = float(self.pose.x)
+            odom__base_link.transform.translation.y = float(self.pose.y)
 
             self.theta, self.theta_turn, self.vel_x, self.vel_y = wheel_vel_turn(self.goal.x,
                                                                                  self.goal.y,
@@ -368,8 +379,8 @@ class Robot(Node):
                     self.move_y = 0.0
 
                 self.move = Twist(linear=Vector3(x=self.max_velocity*np.cos(self.theta),
-                    y = self.max_velocity*np.sin(self.theta), z=0.0),
-                        angular=Vector3(x=0.0, y=0.0, z=0.0))
+                                  y=self.max_velocity*np.sin(self.theta), z=0.0),
+                                  angular=Vector3(x=0.0, y=0.0, z=0.0))
                 self.cmd_vel_pub.publish(self.move)
 
                 odom__base_link.transform.translation.x = float(self.pose.x)
@@ -423,9 +434,9 @@ class Robot(Node):
         self.joints.header.stamp = self.get_clock().now().to_msg()
         self.joints.name = ['offset_to_platform', 'base_to_stem', 'stem_to_wheel']
         self.joints.position = [float(self.offset_plat_joint), float(self.base_stem_joint),
-            float(self.stem_wheel_joint)]
+                                float(self.stem_wheel_joint)]
         self.joints.velocity = [float(self.plat_joint_vel), float(self.stem_joint_vel),
-            float(self.wheel_joint_vel)]
+                                float(self.wheel_joint_vel)]
         self.joint_state_publisher.publish(self.joints)
 
         # Wheel odometry publisher

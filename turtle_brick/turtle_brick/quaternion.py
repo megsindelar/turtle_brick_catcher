@@ -4,7 +4,8 @@ from math import sin, cos, sqrt
 
 # This code was used from Matthew Elwin
 def angle_axis_to_quaternion(theta, axis):
-    """Convert from angle-axis of rotation to a quaternion.
+    """
+    Convert from angle-axis of rotation to a quaternion.
 
     Args:
       theta: angle in radians

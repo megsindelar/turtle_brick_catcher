@@ -12,7 +12,8 @@ from enum import Enum, auto
 
 
 class State(Enum):
-    """Different possible states of the program.
+    """
+    Different possible states of the program.
 
     Purpose: determines what functions get called in the main timer
     """
@@ -26,7 +27,8 @@ class State(Enum):
 
 
 class Arena(Node):
-    """Simulate the environment and brick in space.
+    """
+    Simulate the environment and brick in space.
 
     Broadcasts:
         odom to brick
@@ -63,7 +65,8 @@ class Arena(Node):
         self.declare_parameter('acceleration', 9.8)
         self.acceleration = self.get_parameter('acceleration').get_parameter_value().double_value
         self.declare_parameter('platform_height', 1.55)
-        self.platform_height = self.get_parameter('platform_height').get_parameter_value().double_value
+        self.platform_height = self.get_parameter('platform_height'
+                                                  ).get_parameter_value().double_value
         self.declare_parameter('wheel_radius', 0.3)
         self.wheel_rad = self.get_parameter('wheel_radius').get_parameter_value().double_value
 
@@ -80,7 +83,8 @@ class Arena(Node):
         self.sub = self.create_subscription(RobotMove, "move_robot", self.robot_move_callback, 10)
 
         # create a subscriber for turtle pose
-        self.turtle_sub = self.create_subscription(Pose, "turtle1/pose", self.turtle_pose_callback, 10)
+        self.turtle_sub = self.create_subscription(Pose, "turtle1/pose",
+                                                   self.turtle_pose_callback, 10)
 
         # create a publisher for if brick hit target (either platform or ground)
         self.pub_brick_hit = self.create_publisher(Bool, "brick_hit", 10)
@@ -92,10 +96,12 @@ class Arena(Node):
         self.drop = self.create_service(Empty, "drop", self.drop_callback)
 
         # create a subscriber for if brick hit target
-        self.hit_targ_sub = self.create_subscription(Bool, 'hit_targ', self.hit_targ_callback, 10)
+        self.hit_targ_sub = self.create_subscription(Bool, 'hit_targ',
+                                                     self.hit_targ_callback, 10)
 
         # create a subscriber for tilt_plat to tilt brick
-        self.brick_tilt_sub = self.create_subscription(Tilt, 'tilt_plat', self.brick_tilt_callback, 10)
+        self.brick_tilt_sub = self.create_subscription(Tilt, 'tilt_plat',
+                                                       self.brick_tilt_callback, 10)
 
         # wall markers
         self.wall1 = Marker()
@@ -205,25 +211,25 @@ class Arena(Node):
         self.turtle_pose_past_x = 0
         self.turtle_pose_past_y = 0
         self.base_height = 0.4
-        self.stem_height = 0.2
+        self.stem_h = 0.2
         self.F_tilt = 0
         self.tilt_brick = 0
         self.done = 0
         self.brick_land = Bool()
         self.brick_land.data = False
-        self.z_plat = self.platform_height - (self.base_height/2) - self.stem_height - self.wheel_rad
+        self.z_plat = self.platform_height - self.stem_h - self.wheel_rad - (self.base_height / 2)
         self.z_plat_bottom = 0.226
         self.y_brick_fall = 5.5
         self.z_brick_fall = self.z_plat
 
     def brick_callback(self, request, response):
-        """Get user-specified initial location of brick in space.
+        """
+        Get user-specified initial location of brick in space.
 
         Callback function for /place (turtle_brick_interfaces/srv/Place) service
 
         Args:
             request (PlaceRequest): x, y, and z locations of brick
-
             response (PlaceResponse): x, y, and z locations of brick
 
         Returns
@@ -242,7 +248,8 @@ class Arena(Node):
         return response
 
     def hit_targ_callback(self, msg):
-        """Read if platform is tilting.
+        """
+        Read if platform is tilting.
 
         Callback function for /hit_targ (std_msgs/msg/Bool) topic
 
@@ -260,7 +267,8 @@ class Arena(Node):
             self.done = 1
 
     def brick_tilt_callback(self, msg):
-        """How far to tilt the platform in radians.
+        """
+        How far to tilt the platform in radians.
 
         Callback function for /tilt_plat (turtle_brick_interfaces/msg/Tilt) topic
 
@@ -275,7 +283,8 @@ class Arena(Node):
         self.brick_tilt_rad = msg.tilt
 
     def turtle_pose_callback(self, msg):
-        """Get the position of turtle in turtlesim.
+        """
+        Get the position of turtle in turtlesim.
 
         Callback function for /turtle1/pose (turtlesim/msg/Pose) topic
 
@@ -290,7 +299,8 @@ class Arena(Node):
         self.turtle_pose = msg
 
     def robot_move_callback(self, msg):
-        """To see if robot moves and platform height.
+        """
+        To see if robot moves and platform height.
 
         Callback function for /move_robot (turtle_brick_interfaces/msg/RobotMove) topic
 
@@ -307,7 +317,8 @@ class Arena(Node):
         self.plat_z = self.robot_move_data.height
 
     def drop_callback(self, request, response):
-        """Tell the brick to drop.
+        """
+        Tell the brick to drop.
 
         Callback function for /drop (std_srvs/srv/Empty) service
 
@@ -327,11 +338,12 @@ class Arena(Node):
         return response
 
     def timer_wall(self):
-        """Timer callback at 10 Hz.
+        """
+        Timer callback at 10 Hz.
 
         Publishes:
             visualization_marker_array (visualization_msgs/msg/MarkerArray):
-                array of 4 wall markers in the /world frame  
+                array of 4 wall markers in the /world frame
 
         Args:
             no arguments
@@ -344,7 +356,8 @@ class Arena(Node):
         self.pub_wall.publish(self.wall_array)
 
     def timer(self):
-        """Timer callback at 100 Hz.
+        """
+        Timer callback at 100 Hz.
 
         Broadcasts:
             odom to brick
@@ -390,7 +403,7 @@ class Arena(Node):
 
             if self.dz > self.z_goal:
                 self.dz = self.brick_init_z - 0.5*self.acceleration*((self.n / self.freq)**2)
-                self.n+=1
+                self.n += 1
 
             self.odom__brick_link.transform.translation.z = float(self.dz)
 
@@ -437,7 +450,8 @@ class Arena(Node):
                     else:
                         self.z_brick_fall = (self.z_plat - self.z_plat_bottom)
 
-                    if self.z_brick_fall == (self.z_plat - self.z_plat_bottom) and self.y_brick_fall == 5.05:
+                    if self.z_brick_fall == (self.z_plat - self.z_plat_bottom
+                                             ) and self.y_brick_fall == 5.05:
                         self.F_tilt = 1
 
                     self.odom__brick_link.transform.translation.y = self.y_brick_fall

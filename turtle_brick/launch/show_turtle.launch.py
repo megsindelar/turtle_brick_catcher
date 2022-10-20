@@ -8,16 +8,19 @@ from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
+
 def generate_launch_description():
     urdf_path = get_package_share_path('turtle_brick')
     default_model_path = urdf_path / 'turtle.urdf.xacro'
     default_rviz_config_path = urdf_path / 'turtle_urdf.rviz'
 
-    jsp_arg = DeclareLaunchArgument(name='j_s_p', default_value='gui', choices=['gui', 'jsp', 'none'],
+    jsp_arg = DeclareLaunchArgument(name='j_s_p', default_value='gui',
+                                    choices=['gui', 'jsp', 'none'],
                                     description='Flag to decide how to control joint_states')
     model_arg = DeclareLaunchArgument(name='model', default_value=str(default_model_path),
                                       description='Absolute path to robot urdf file')
-    rviz_arg = DeclareLaunchArgument(name='turtle_urdf', default_value=str(default_rviz_config_path),
+    rviz_arg = DeclareLaunchArgument(name='turtle_urdf',
+                                     default_value=str(default_rviz_config_path),
                                      description='Absolute path to rviz config file')
 
     robot_description = ParameterValue(Command(['xacro ', LaunchConfiguration('model')]),
@@ -43,11 +46,11 @@ def generate_launch_description():
     )
 
     rviz_node = Node(
-    package='rviz2',
-    executable='rviz2',
-    name='rviz2',
-    output='screen',
-    arguments=['-d', LaunchConfiguration('turtle_urdf')],
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        output='screen',
+        arguments=['-d', LaunchConfiguration('turtle_urdf')],
     )
 
     return LaunchDescription([

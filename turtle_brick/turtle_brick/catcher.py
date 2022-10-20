@@ -12,7 +12,8 @@ from turtle_brick_interfaces.msg import RobotMove, Tilt
 
 
 class State(Enum):
-    """Different possible states of the program.
+    """
+    Different possible states of the program.
 
     Purpose: determines what functions get called in the main timer
     """
@@ -22,7 +23,8 @@ class State(Enum):
 
 
 class Catcher(Node):
-    """Coordinates robot to catch falling brick.
+    """
+    Coordinates robot to catch falling brick.
 
     Listeners:
         odom to base_link
@@ -124,7 +126,8 @@ class Catcher(Node):
         self.F = 0
 
     def brick_to_base(self, x_brick, y_brick, z_brick, x_plat, y_plat, z_plat):
-        """Determine if robot can catch the brick.
+        """
+        Determine if robot can catch the brick.
 
         Args:
             x_brick: position in x-axis (float)
@@ -172,7 +175,8 @@ class Catcher(Node):
             self.marker = 1
 
     def timer(self):
-        """Timer callback at 100 Hz.
+        """
+        Timer callback at 100 Hz.
 
         Publishes:
             goal_pose (geometry_msgs/msg/Point): goal position for robot
