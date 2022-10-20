@@ -103,6 +103,7 @@ class Catcher(Node):
 
         # initialize variables
         self.max_vel = 1.0
+        self.life = 0
         self.odom = "odom"
         self.brick = "brick"
         self.base = "base_link"
@@ -143,7 +144,7 @@ class Catcher(Node):
 
         """
         z_diff = z_brick - z_plat
-
+        self.get_logger().info(f'z_diff: {z_diff}')
         if z_diff > 0:
             euclid_dist = sqrt((x_brick - x_plat)**2 + (y_brick - y_plat)**2)
             t_b = sqrt(((2*(z_brick - z_plat))/self.acceleration))
@@ -168,9 +169,11 @@ class Catcher(Node):
                 # robot can't catch the brick
                 self.z_brick_prev = -10.0
                 self.marker = 1
+                self.get_logger().info(f'marker txt2: {self.marker}')
                 self.state = State.UNDETECTED
 
         else:
+            self.get_logger().info(f'marker txt3: {self.marker}')
             self.z_brick_prev = -10.0
             self.marker = 1
 
@@ -231,10 +234,17 @@ class Catcher(Node):
 
             self.z_brick_prev = z_brick
 
+            self.get_logger().info(f'marker txt: {self.marker}')
             if self.marker == 1:
                 self.text.header.stamp = self.get_clock().now().to_msg()
+                self.text.lifetime.sec = 3
                 self.pub_text.publish(self.text)
-            self.marker = 0
+                self.get_logger().info('HI')
+            if self.life < 300:
+                self.life += 1
+            else:
+                self.marker = 0
+                self.life = 0
 
         elif self.state == State.DETECTED:
             self.robot.robotmove = False
