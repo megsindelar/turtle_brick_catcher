@@ -13,7 +13,7 @@ Author: Megan Sindelar
         1. Robot can get to the falling brick in time and catch it
         2. Robot can't get to the falling brick in time
 
-[SindelarMegan_HW2_Demo.webm](https://user-images.githubusercontent.com/87098227/196987187-9f066a63-288e-4444-bbb0-687f02435c3c.webm)
+[SindelarMegan_HW2_Demo_Real.webm](https://user-images.githubusercontent.com/87098227/196990678-0cbd2f19-0ba3-4024-9ac8-7566126e09b0.webm)
 
 I worked with: Liz Metzger, Marno Nel, Nick Morales, Ritika Ghosh, and Katie Hughes
 
