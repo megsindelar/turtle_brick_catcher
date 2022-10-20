@@ -3,18 +3,17 @@ from rclpy.node import Node
 from rclpy.time import Time
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
-from tf2_ros.buffer import Buffer
-from tf2_ros.transform_listener import TransformListener
-from geometry_msgs.msg import TransformStamped, Twist, Vector3, Point, PoseWithCovariance, TwistWithCovariance
+from geometry_msgs.msg import TransformStamped, Twist, Vector3, Point
 from turtlesim.msg import Pose
 from sensor_msgs.msg import JointState
 from .quaternion import angle_axis_to_quaternion
-from std_msgs.msg import Bool, Float64
+from std_msgs.msg import Bool
 from turtle_brick_interfaces.msg import RobotMove, Tilt
 from nav_msgs.msg import Odometry
 import numpy as np
 
 def wheel_vel_turn(goal_x, goal_y, pose_x, pose_y, max_vel):
+    """Function to compute the turn of the wheel and velocity of robot"""
     diff_x = goal_x - pose_x 
     diff_y = goal_y - pose_y
     theta = np.arctan2(diff_y, diff_x)
@@ -28,9 +27,27 @@ def wheel_vel_turn(goal_x, goal_y, pose_x, pose_y, max_vel):
 class Robot(Node):
     """ Move robot link/joint frames in space
     
-        Static Broadcasters:
-
-        Broadcasters:
+        Static Broadcasts: 
+            world to odom
+        Broadcasts:
+            odom to base_link
+        Publishers:
+            joint_states (sensor_msgs/msg/JointState): publishes joint commands to the robot
+            turtle1/cmd_vel (geometry_msgs/msg/Twist): publishes velocities to move the robot
+            hit_targ (std_msgs/msg/Bool): publishes that the platform is tilting
+            odom (nav_msgs/msg/Odometry): publishes wheel odometry
+        Subscribers:
+            goal_pose (geometry_msgs/msg/Point): goal position for robot
+            move_robot (turtle_brick_interfaces/msg/RobotMove): see if robot moves
+            brick_hit (std_msgs/msg/Bool): checks if brick hit platform or ground  
+            turtle1/pose (turtlesim/msg/Pose): position of turtle in turtlesim
+            tilt_plat (turtle_brick_interfaces/msg/Tilt): radians to tilt the platform
+            brick_ground (std_msgs/msg/Bool): brick is off the platform          
+        Parameters:
+            max_velocity (double): maximum velocity of the robot
+            wheel_radius (double): radius of the wheel
+        Timers:
+            timer: runs at 100 Hz
     """
     def __init__(self):
         super().__init__('turtle_robot')
@@ -55,7 +72,7 @@ class Robot(Node):
         #create a subscriber to see if robot moves
         self.move_robot_sub = self.create_subscription(RobotMove, "move_robot", self.move_robot_callback, 10)
 
-        #create a publisher for if brick hit target (either ground or platform)
+        #create a publisher for platform tilting (brick should fall)
         self.hit_targ_pub = self.create_publisher(Bool, "hit_targ", 10)
 
         #create a subscriber for if brick hit target (either platform or ground)
@@ -67,22 +84,20 @@ class Robot(Node):
         #create a subsciber to tilt_plat to tilt the platform
         self.tilt_plat_sub = self.create_subscription(Tilt, 'tilt_plat', self.tilt_plat_callback, 10)
 
-        #create a subscriber to see if brick landed after platform tilt
-        self.brick_landed_sub = self.create_subscription(Bool, 'brick_landed', self.brick_landed_callback, 10)
-
-        #create a subsriber to see if brick is on ground
+        #create a subsriber to see if brick is off the platform
         self.brick_ground_sub = self.create_subscription(Bool, 'brick_ground', self.brick_ground_callback, 10)
 
         #create a publisher for wheel odometry
         self.wheel_odometry_pub = self.create_publisher(Odometry, "odom", 10)
 
 
+        #static broadcast for world frame to odom frame
         world__odom_link = TransformStamped()
         world__odom_link.header.stamp = self.get_clock().now().to_msg()
         world__odom_link.header.frame_id = "world"
         world__odom_link.child_frame_id = "odom"
-        world__odom_link.transform.translation.x = -7.0          #needs to be turtles initial conditions
-        world__odom_link.transform.translation.z = 1.0          #needs to be turtles initial conditions
+        world__odom_link.transform.translation.x = -7.0
+        world__odom_link.transform.translation.z = 1.0
         self.static_broadcaster.sendTransform(world__odom_link)
 
 
@@ -92,129 +107,149 @@ class Robot(Node):
         self.freq = 100
         self.timer = self.create_timer((1/self.freq), self.timer)
 
-        #NEED TO TILT PLAT BACK
-
-        self.dx = 1
-        self.lx = 3.0
-        self.ly = 0.0
-        self.lz = 0.0
-        self.ax = 0.0
-        self.ay = 0.0
-        self.az = 0.0
-
-        self.i = 0
-        self.count = 0
+        #initializing variables
         self.robot_move = False
-
-        #self.max_vel = 1.0
-
         self.move_robot_now = 0
         self.wait = 0
-
         self.targ = Bool()
         self.targ.data = False
-
         self.brick_hit = 0
-
         self.offset_plat_joint = 0.0
         self.base_stem_joint = 0.0
         self.stem_wheel_joint = 0.0
         self.plat_joint_vel = 0.0
         self.stem_joint_vel = 0.0
         self.wheel_joint_vel = 0.0
-
         self.wheel_circ = 2*np.pi*self.wheel_rad
-
         self.F_tilt = 0
-
         self.wheel_roll = 0.0
-
         self.theta_wheel = 0.0
-
         self.tilt_platform = 0
-
         self.vel_x = 0.0
         self.vel_y = 0.0
-
         self.F_dist = 0
-
         self.odometry = Odometry()
-        # self.wheel_turn.pose
-        # self.wheel_pose = PoseWithCovariance()
-        # self.wheel_twist = TwistWithCovariance()
-
 
     def brick_hit_callback(self,msg):
+        """ Callback function for /brick_hit service
+            type: std_msgs/msg/Bool
+
+            Reads if brick hit platform
+
+            Args:
+                msg: the data from the topic /brick_hit
+
+            Returns: 
+                no returns
+        """
         self.brick_platform = msg
         if self.brick_platform.data == True:
             self.brick_hit = 1
 
     def turtle_pose_callback(self,msg):
+        """ Callback function for /turtle1/pose service
+            type: turtlesim/msg/Pose
+
+            Gets turtle position data
+
+            Args:
+                msg: the data from the topic turtle1/pose
+
+            Returns: 
+                no returns
+        """
         self.pose = msg
 
     def goal_pose_callback(self,msg):
+        """ Callback function for /goal_pose service
+            type: geometry_msgs/msg/Point
+
+            Goal position for the robot
+
+            Args:
+                msg: the data from the topic /goal_pose
+
+            Returns: 
+                no returns
+        """
         self.goal = msg
-        self.get_logger().info(f'goal pose: {self.goal}')
 
     def move_robot_callback(self,msg):
+        """ Callback function for /move_robot service
+            type: turtle_brick_interfaces/msg/RobotMove
+
+            To see if robot moves
+
+            Args:
+                msg: the data from the topic /move_robot
+
+            Returns: 
+                no returns
+        """
         self.brick = msg
         self.robot_move = self.brick.robotmove
         if self.robot_move == True:
             self.move_robot_now = 1
 
     def brick_ground_callback(self,msg):
+        """ Callback function for /brick_ground service
+            type: std_msgs/msg/Bool
+
+            Reads if brick is off the platform
+
+            Args:
+                msg: the data from the topic /brick_ground
+
+            Returns: 
+                no returns
+        """
         self.brick_ground = msg.data
 
     def tilt_plat_callback(self,msg):
+        """ Callback function for /tilt_plat service
+            type: turtle_brick_interfaces/msg/Tilt
+
+            How much to tilt the platform (radians)
+
+            Args:
+                msg: the data from the topic /tilt_plat
+
+            Returns: 
+                no returns
+        """
         self.plat_tilt_rad = msg.tilt
 
-    def brick_landed_callback(self,msg):
-        self.brick_land = msg.data
-
-
-    # def odom_callback(self,msg):
-    #     self.wheel_odom = msg
-    #     self.get_logger().info(f'wheel odom sub: {self.wheel_odom}')
 
     def timer(self):
+        """ Timer callback at 100 Hz
+
+            Publishes:
+                joint_states (sensor_msgs/msg/JointState): joint commands to the robot
+                turtle1/cmd_vel (geometry_msgs/msg/Twist): velocities to move the robot
+                hit_targ (std_msgs/msg/Bool): that the platform is tilting
+                odom (nav_msgs/msg/Odometry): wheel odometry
+
+            Broadcasts:
+                odom to base_link
+
+            Args:
+                no arguments
+
+            Returns: 
+                no returns
+        """
         odom__base_link = TransformStamped()
         time = self.get_clock().now().to_msg()
         odom__base_link.header.frame_id = "odom"
         odom__base_link.child_frame_id = "base_link"
         odom__base_link.header.stamp = time
 
-        if self.i<8:
-            self.lx += 1.0
-            self.i+=1
-
-
         self.move = Twist()
 
-        self.get_logger().info('WAITING')
-
         if self.move_robot_now == 1:
-            self.get_logger().info('Hi')
             self.diff_x = self.goal.x - self.pose.x 
             self.diff_y = self.goal.y - self.pose.y
-
-            # self.get_logger().info(f'log diff x: {self.diff_x}')
-            # self.get_logger().info(f'log diff y: {self.diff_y}')
-
             self.theta, self.theta_turn, self.vel_x, self.vel_y = wheel_vel_turn(self.goal.x, self.goal.y, self.pose.x, self.pose.y, self.max_velocity)
-            # self.get_logger().info(f'log tbeta1: {self.theta1}')
-            # self.get_logger().info(f'log thetaturn1: {self.theta_turn1}')
-            # self.get_logger().info(f'log vx1: {self.vel_x1}')
-            # self.get_logger().info(f'log vy1: {self.vel_y1}')
-
-            # self.theta = np.arctan2(self.diff_y, self.diff_x)
-            # self.theta_turn = np.arctan2(self.diff_x, self.diff_y)
-            # self.vel_x = self.max_velocity*np.cos(self.theta)
-            # self.vel_y = self.max_velocity*np.sin(self.theta)
-
-            self.get_logger().info(f'tbeta: {self.theta}')
-            self.get_logger().info(f'thetaturn: {self.theta_turn}')
-            self.get_logger().info(f'vx: {self.vel_x}')
-            self.get_logger().info(f'vy: {self.vel_y}')
 
             if self.F_dist == 0:
                 self.euclid_dist = np.sqrt(self.diff_x**2 + self.diff_y**2)
@@ -224,19 +259,10 @@ class Robot(Node):
             if self.stem_wheel_joint > -30.0:
                 self.stem_wheel_joint -= self.stem_turn_step
 
-            self.get_logger().info(f'STEPPPPPPPPPPPPPPPPPPPPPP: {self.stem_turn_step}')
-
-
-            # if self.stem_wheel_joint < 30.0:
-            #     self.stem_wheel_joint += 0.05
-
             self.theta_wheel = self.stem_wheel_joint
 
             self.base_stem_joint = self.theta_turn
             self.theta_stem = self.theta_turn
-
-            self.get_logger().info(f'log vel x: {self.vel_x}')
-            self.get_logger().info(f'log vel y: {self.vel_y}')
 
             self.F_tilt = 0
 
@@ -260,12 +286,7 @@ class Robot(Node):
             odom__base_link.transform.translation.y = float(self.pose.y)
 
             self.abs_diff_x = abs(self.goal.x - self.pose.x)
-            self.abs_diff_y = abs(self.goal.y - self.pose.y)
-            self.get_logger().info(f'abs diff x: {self.abs_diff_x}')
-            self.get_logger().info(f'abs diff y: {self.abs_diff_y}')
-            self.get_logger().info(f'move x: {self.move.linear.x}')
-            self.get_logger().info(f'move y: {self.move.linear.y}')
-           
+            self.abs_diff_y = abs(self.goal.y - self.pose.y)           
 
             if self.abs_diff_x < 0.05 and self.abs_diff_y < 0.05:
                 self.wait = 1
@@ -274,8 +295,6 @@ class Robot(Node):
 
         
         elif self.move_robot_now == 0 and self.wait == 1:
-            #if self.hit_targ == True:
-            self.get_logger().info('WAITING')
             self.move.linear.x = 0.0
             self.move.linear.y = 0.0
             odom__base_link.transform.translation.x = float(self.pose.x)
@@ -287,14 +306,8 @@ class Robot(Node):
             self.theta_stem = self.theta_turn
             
             if self.brick_hit == 1:
-                self.get_logger().info(f'brick_hit: {self.brick_hit}')
-
-                self.get_logger().info('AHHHHHHHHHHHHHHHH')
 
                 self.targ.data = True
-
-                # if self.stem_wheel_joint > -30.0:
-                #     self.stem_wheel_joint -= 0.05
 
                 if self.stem_wheel_joint < 30.0:
                     self.stem_wheel_joint += self.stem_turn_step
@@ -309,17 +322,6 @@ class Robot(Node):
                 self.theta = np.arctan2(self.difference_y, self.difference_x)
                 self.vel_x = self.max_velocity*np.cos(self.theta)
                 self.vel_y = self.max_velocity*np.sin(self.theta)
-
-                self.get_logger().info(f'log diff x: {self.difference_x}')
-                self.get_logger().info(f'log diff y: {self.difference_y}')
-
-
-                self.get_logger().info(f'log pose x: {self.pose.x}')
-                self.get_logger().info(f'log pose y: {self.pose.y}')
-
-                self.get_logger().info(f'log vel x: {self.vel_x}')
-                self.get_logger().info(f'log vel y: {self.vel_y}')
-
 
                 if abs(self.difference_x) > 0.05:
                     self.move_x = float(self.vel_x)
@@ -340,16 +342,7 @@ class Robot(Node):
 
                 if self.move_x == 0.0 and self.move_y == 0.0:
                     self.wait = 0
-                    self.tilt_platform = 1
-                      
-
-              
-
-        # elif self.move_robot_now == 0 and self.wait == 1:
-        #     self.move.linear.x = 0.0
-        #     self.move.linear.y = 0.0
-        #     odom__base_link.transform.translation.x = float(self.pose.x)
-        #     odom__base_link.transform.translation.y = float(self.pose.y)
+                    self.tilt_platform = 1                 
 
         else:
             self.move.linear.x = 0.0
@@ -378,8 +371,6 @@ class Robot(Node):
                 elif self.F_tilt == 2:
                     if self.offset_plat_joint > 0.0:
                         self.offset_plat_joint -= 0.05
-                        self.get_logger().info(f'plat_joint_in: {self.offset_plat_joint}')
-                        self.get_logger().info('WWWWWWWWWWWWWWWWWWWWWWWWWW')
                     else:
                         self.offset_plat_joint = 0.0
                         self.tilt_platform = 0
@@ -388,24 +379,8 @@ class Robot(Node):
                 if self.F_tilt == 1 and self.brick_ground == True:
                     self.F_tilt = 2
 
-            #self.get_logger().info(f'F_tilt: {self.F_tilt}')
-            #self.get_logger().info(f'plat_joint: {self.offset_plat_joint}')
-
-
-        self.get_logger().info(f'move_turtle: {self.move}')
         self.cmd_vel_pub.publish(self.move)
         self.hit_targ_pub.publish(self.targ)
-
-
-        #wheel odometry publisher
-        # self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
-        # self.wheel_turn.header.frame_id = 
-        # self.wheel_turn.child_frame_id = 
-        # self.wheel_turn.pose = 
-        # self.wheel_turn.twist = 
-        # self.wheel_odometry_pub.publish(self.wheel_turn)
-
-        #if self.count == 30:
 
         self.broadcaster.sendTransform(odom__base_link)
 
@@ -415,12 +390,6 @@ class Robot(Node):
         self.joints.position = [float(self.offset_plat_joint), float(self.base_stem_joint), float(self.stem_wheel_joint)]
         self.joints.velocity = [float(self.plat_joint_vel), float(self.stem_joint_vel), float(self.wheel_joint_vel)]
         self.joint_state_publisher.publish(self.joints)
-
-        self.get_logger().info(f'stem wheel: {self.stem_wheel_joint}')
-       # self.get_logger().info(f'rob mov: {self.move_robot_now}')
-        #else:
-        #    self.count+=1
-
 
         #Wheel odometry publisher
         self.odometry.header.frame_id = "odom"
@@ -434,22 +403,6 @@ class Robot(Node):
         self.odometry.pose.pose.position.y = odom__base_link.transform.translation.y
         self.odometry.pose.pose.position.z = odom__base_link.transform.translation.z
         self.wheel_odometry_pub.publish(self.odometry)
-
-        # self.wheel_turn.header.frame_id = "stem"
-        # self.wheel_turn.child_frame_id = "wheel"
-        # self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
-        # self.axis_wheel = [1, 0, 0]
-        # self.quaternion = angle_axis_to_quaternion(self.theta_wheel, self.axis_wheel)
-        # self.wheel_turn.pose.pose.orientation = self.quaternion
-        # self.wheel_turn.twist.twist.angular.x = self.theta_wheel
-        # self.wheel_turn.twist.twist.linear.x = self.vel_x
-        # self.wheel_turn.twist.twist.linear.y = self.vel_y
-        
-        # self.wheel_turn.header.stamp = self.get_clock().now().to_msg()
-        # self.wheel_odometry_pub.publish(self.wheel_turn)
-
-        #self.get_logger().info(f'wheel rad: {self.wheel_rad}')
-
 
 
 def turtle_robot_entry(args=None):
